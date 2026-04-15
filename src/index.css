@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+}
+
+/* Custom animations */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(30px, -30px); }
+}
+
+@keyframes eq-bar {
+  0% { height: 20%; }
+  100% { height: 100%; }
+}
+
+/* Global styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: #060609;
+  color: #f8fafc;
+}
+
+/* Dynamic palette (overridden at runtime by useArtworkPalette) */
+:root {
+  --color-dominant: #404040;
+  --color-muted: #262626;
+  --color-vibrant: #525252;
+  --color-light: #737373;
+  --color-dark: #171717;
+  transition: --color-dominant 1.5s ease, --color-muted 1.5s ease, --color-vibrant 1.5s ease, --color-light 1.5s ease, --color-dark 1.5s ease;
+}
+
+/* Hide scrollbar on scroll-snap containers */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Scrollbar for other elements */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
