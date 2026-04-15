@@ -11,11 +11,22 @@ const DEFAULT_PALETTE: PaletteColors = {
 
 // --- Color math ---
 
-interface RGB { r: number; g: number; b: number }
-interface HSL { h: number; s: number; l: number }
+interface RGB {
+  r: number;
+  g: number;
+  b: number;
+}
+interface HSL {
+  h: number;
+  s: number;
+  l: number;
+}
 
 function rgbToHex({ r, g, b }: RGB): string {
-  const c = (v: number) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0");
+  const c = (v: number) =>
+    Math.max(0, Math.min(255, Math.round(v)))
+      .toString(16)
+      .padStart(2, "0");
   return `#${c(r)}${c(g)}${c(b)}`;
 }
 
@@ -25,8 +36,11 @@ function hexToRgb(hex: string): RGB {
 }
 
 function rgbToHsl({ r, g, b }: RGB): HSL {
-  r /= 255; g /= 255; b /= 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b),
+    min = Math.min(r, g, b);
   const l = (max + min) / 2;
   if (max === min) return { h: 0, s: 0, l };
   const d = max - min;
@@ -41,9 +55,13 @@ function rgbToHsl({ r, g, b }: RGB): HSL {
 function hslToRgb({ h, s, l }: HSL): RGB {
   s = Math.max(0, Math.min(1, s));
   l = Math.max(0, Math.min(1, l));
-  if (s === 0) { const v = Math.round(l * 255); return { r: v, g: v, b: v }; }
+  if (s === 0) {
+    const v = Math.round(l * 255);
+    return { r: v, g: v, b: v };
+  }
   const hue2rgb = (p: number, q: number, t: number) => {
-    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
     if (t < 1 / 6) return p + (q - p) * 6 * t;
     if (t < 1 / 2) return q;
     if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
@@ -58,15 +76,21 @@ function hslToRgb({ h, s, l }: HSL): RGB {
   };
 }
 
-function hslToHex(hsl: HSL): string { return rgbToHex(hslToRgb(hsl)); }
+function hslToHex(hsl: HSL): string {
+  return rgbToHex(hslToRgb(hsl));
+}
 
 function relativeLuminance({ r, g, b }: RGB): number {
-  const f = (c: number) => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
+  const f = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
   return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
 }
 
 function contrastRatio(a: RGB, b: RGB): number {
-  const la = relativeLuminance(a), lb = relativeLuminance(b);
+  const la = relativeLuminance(a),
+    lb = relativeLuminance(b);
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
@@ -81,8 +105,12 @@ interface ColorBucket {
 }
 
 function channelRange(pixels: RGB[], ch: "r" | "g" | "b"): number {
-  let min = 255, max = 0;
-  for (const p of pixels) { if (p[ch] < min) min = p[ch]; if (p[ch] > max) max = p[ch]; }
+  let min = 255,
+    max = 0;
+  for (const p of pixels) {
+    if (p[ch] < min) min = p[ch];
+    if (p[ch] > max) max = p[ch];
+  }
   return max - min;
 }
 
@@ -93,7 +121,8 @@ function medianCut(pixels: RGB[], depth: number): ColorBucket[] {
   const rRange = channelRange(pixels, "r");
   const gRange = channelRange(pixels, "g");
   const bRange = channelRange(pixels, "b");
-  const ch = rRange >= gRange && rRange >= bRange ? "r" : gRange >= bRange ? "g" : "b";
+  const ch =
+    rRange >= gRange && rRange >= bRange ? "r" : gRange >= bRange ? "g" : "b";
 
   // Sort by that channel and split at median
   pixels.sort((a, b) => a[ch] - b[ch]);
@@ -106,8 +135,14 @@ function medianCut(pixels: RGB[], depth: number): ColorBucket[] {
 }
 
 function bucketAverage(bucket: ColorBucket): RGB {
-  let r = 0, g = 0, b = 0;
-  for (const p of bucket.pixels) { r += p.r; g += p.g; b += p.b; }
+  let r = 0,
+    g = 0,
+    b = 0;
+  for (const p of bucket.pixels) {
+    r += p.r;
+    g += p.g;
+    b += p.b;
+  }
   const n = bucket.pixels.length || 1;
   return { r: r / n, g: g / n, b: b / n };
 }
@@ -128,7 +163,10 @@ function extractFromCanvas(img: HTMLImageElement): PaletteColors {
   // Collect pixels, skip near-black and near-white (not interesting)
   const pixels: RGB[] = [];
   for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+    const r = data[i],
+      g = data[i + 1],
+      b = data[i + 2],
+      a = data[i + 3];
     if (a < 128) continue; // skip transparent
     const l = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
     if (l > 0.03 && l < 0.97) pixels.push({ r, g, b });
@@ -140,7 +178,11 @@ function extractFromCanvas(img: HTMLImageElement): PaletteColors {
   const buckets = medianCut([...pixels], 4);
   const quantized = buckets
     .filter((b) => b.pixels.length > 0)
-    .map((b) => ({ color: bucketAverage(b), count: b.pixels.length, hsl: rgbToHsl(bucketAverage(b)) }))
+    .map((b) => ({
+      color: bucketAverage(b),
+      count: b.pixels.length,
+      hsl: rgbToHsl(bucketAverage(b)),
+    }))
     .sort((a, b) => b.count - a.count);
 
   if (quantized.length === 0) return DEFAULT_PALETTE;
@@ -148,23 +190,31 @@ function extractFromCanvas(img: HTMLImageElement): PaletteColors {
   // --- Assign roles ---
 
   // Dominant: most frequent color, prefer mid-lightness
-  const dominant = quantized.find((c) => c.hsl.l > 0.1 && c.hsl.l < 0.8) ?? quantized[0];
+  const dominant =
+    quantized.find((c) => c.hsl.l > 0.1 && c.hsl.l < 0.8) ?? quantized[0];
 
   // Vibrant: highest saturation with reasonable lightness, prefer different hue from dominant
   const vibrantCandidates = [...quantized]
     .filter((c) => c.hsl.s > 0.15 && c.hsl.l > 0.15 && c.hsl.l < 0.85)
     .sort((a, b) => {
       // Score = saturation * 2 + hue distance from dominant * 0.5
-      const aHueDist = Math.min(Math.abs(a.hsl.h - dominant.hsl.h), 1 - Math.abs(a.hsl.h - dominant.hsl.h));
-      const bHueDist = Math.min(Math.abs(b.hsl.h - dominant.hsl.h), 1 - Math.abs(b.hsl.h - dominant.hsl.h));
-      return (b.hsl.s * 2 + bHueDist * 0.5) - (a.hsl.s * 2 + aHueDist * 0.5);
+      const aHueDist = Math.min(
+        Math.abs(a.hsl.h - dominant.hsl.h),
+        1 - Math.abs(a.hsl.h - dominant.hsl.h),
+      );
+      const bHueDist = Math.min(
+        Math.abs(b.hsl.h - dominant.hsl.h),
+        1 - Math.abs(b.hsl.h - dominant.hsl.h),
+      );
+      return b.hsl.s * 2 + bHueDist * 0.5 - (a.hsl.s * 2 + aHueDist * 0.5);
     });
   const vibrant = vibrantCandidates[0] ?? dominant;
 
   // Muted: low saturation, mid lightness, prefer similar hue to dominant
-  const muted = quantized
-    .filter((c) => c.hsl.s < 0.4 && c.hsl.l > 0.1 && c.hsl.l < 0.5)
-    .sort((a, b) => a.hsl.s - b.hsl.s)[0] ?? dominant;
+  const muted =
+    quantized
+      .filter((c) => c.hsl.s < 0.4 && c.hsl.l > 0.1 && c.hsl.l < 0.5)
+      .sort((a, b) => a.hsl.s - b.hsl.s)[0] ?? dominant;
 
   // --- Derive final hex values with adjustments ---
 
@@ -221,20 +271,32 @@ function extractFromCanvas(img: HTMLImageElement): PaletteColors {
   let adjustedVibrant = vibrantHex;
   if (contrastRatio(finalVibrant, finalDark) < 3) {
     const vhsl = rgbToHsl(finalVibrant);
-    adjustedVibrant = hslToHex({ h: vhsl.h, s: Math.min(0.8, vhsl.s + 0.15), l: Math.min(0.7, vhsl.l + 0.15) });
+    adjustedVibrant = hslToHex({
+      h: vhsl.h,
+      s: Math.min(0.8, vhsl.s + 0.15),
+      l: Math.min(0.7, vhsl.l + 0.15),
+    });
   }
 
   // Ensure light vs dark has enough contrast (min 4.5:1 for text readability)
   let adjustedLight = lightHex;
   if (contrastRatio(finalLight, finalDark) < 4.5) {
     const lhsl = rgbToHsl(finalLight);
-    adjustedLight = hslToHex({ h: lhsl.h, s: lhsl.s, l: Math.min(0.9, lhsl.l + 0.15) });
+    adjustedLight = hslToHex({
+      h: lhsl.h,
+      s: lhsl.s,
+      l: Math.min(0.9, lhsl.l + 0.15),
+    });
   }
 
   // Ensure vibrant and light aren't too similar
   if (colorDistance(hexToRgb(adjustedVibrant), hexToRgb(adjustedLight)) < 60) {
     const lhsl = rgbToHsl(hexToRgb(adjustedLight));
-    adjustedLight = hslToHex({ h: lhsl.h, s: Math.max(0.15, lhsl.s - 0.1), l: Math.min(0.85, lhsl.l + 0.1) });
+    adjustedLight = hslToHex({
+      h: lhsl.h,
+      s: Math.max(0.15, lhsl.s - 0.1),
+      l: Math.min(0.85, lhsl.l + 0.1),
+    });
   }
 
   return {
@@ -256,20 +318,28 @@ async function extractWithVibrant(proxyUrl: string): Promise<PaletteColors> {
 
   const get = (swatch: { hex?: string } | null | undefined) => swatch?.hex;
 
-  const vibrantHex = get(p.Vibrant) ?? get(p.LightVibrant) ?? get(p.DarkVibrant);
+  const vibrantHex =
+    get(p.Vibrant) ?? get(p.LightVibrant) ?? get(p.DarkVibrant);
   const dominantHex = get(p.DarkVibrant) ?? get(p.Vibrant) ?? get(p.DarkMuted);
   const mutedHex = get(p.Muted) ?? get(p.DarkMuted) ?? get(p.LightMuted);
   const lightHex = get(p.LightVibrant) ?? get(p.LightMuted) ?? get(p.Vibrant);
   const darkHex = get(p.DarkMuted) ?? get(p.DarkVibrant) ?? get(p.Muted);
 
-  if (!vibrantHex || !dominantHex) throw new Error("Vibrant returned empty swatches");
+  if (!vibrantHex || !dominantHex)
+    throw new Error("Vibrant returned empty swatches");
 
   // Post-process for contrast/distinctness
   const vibrantHsl = rgbToHsl(hexToRgb(vibrantHex));
-  const lightRaw = lightHex ? rgbToHsl(hexToRgb(lightHex)) : { ...vibrantHsl, l: 0.75 };
+  const lightRaw = lightHex
+    ? rgbToHsl(hexToRgb(lightHex))
+    : { ...vibrantHsl, l: 0.75 };
   const dominantHsl = rgbToHsl(hexToRgb(dominantHex));
-  const mutedRaw = mutedHex ? rgbToHsl(hexToRgb(mutedHex)) : { ...dominantHsl, s: 0.15, l: 0.2 };
-  const darkRaw = darkHex ? rgbToHsl(hexToRgb(darkHex)) : { ...dominantHsl, l: 0.06 };
+  const mutedRaw = mutedHex
+    ? rgbToHsl(hexToRgb(mutedHex))
+    : { ...dominantHsl, s: 0.15, l: 0.2 };
+  const darkRaw = darkHex
+    ? rgbToHsl(hexToRgb(darkHex))
+    : { ...dominantHsl, l: 0.06 };
 
   // Ensure light is actually light
   const finalLight = hslToHex({
@@ -279,10 +349,15 @@ async function extractWithVibrant(proxyUrl: string): Promise<PaletteColors> {
   });
 
   // Ensure dark is actually dark
-  const finalDark = hslToHex({ h: darkRaw.h, s: Math.max(0.05, darkRaw.s * 0.3), l: 0.06 });
+  const finalDark = hslToHex({
+    h: darkRaw.h,
+    s: Math.max(0.05, darkRaw.s * 0.3),
+    l: 0.06,
+  });
 
   // Boost vibrant if too dim
-  let vS = vibrantHsl.s, vL = vibrantHsl.l;
+  let vS = vibrantHsl.s,
+    vL = vibrantHsl.l;
   if (vS < 0.35) vS = Math.min(0.7, vS * 2);
   if (vL < 0.25) vL = 0.4;
   if (vL > 0.75) vL = 0.65;
@@ -290,13 +365,25 @@ async function extractWithVibrant(proxyUrl: string): Promise<PaletteColors> {
 
   // Contrast checks
   if (contrastRatio(hexToRgb(finalVibrant), hexToRgb(finalDark)) < 3) {
-    finalVibrant = hslToHex({ h: vibrantHsl.h, s: Math.min(0.8, vS + 0.15), l: Math.min(0.7, vL + 0.15) });
+    finalVibrant = hslToHex({
+      h: vibrantHsl.h,
+      s: Math.min(0.8, vS + 0.15),
+      l: Math.min(0.7, vL + 0.15),
+    });
   }
 
   return {
     vibrant: finalVibrant,
-    dominant: hslToHex({ h: dominantHsl.h, s: Math.min(0.6, Math.max(0.1, dominantHsl.s)), l: Math.max(0.12, Math.min(0.35, dominantHsl.l)) }),
-    muted: hslToHex({ h: mutedRaw.h, s: Math.max(0.05, Math.min(0.25, mutedRaw.s * 0.5)), l: Math.max(0.1, Math.min(0.25, mutedRaw.l)) }),
+    dominant: hslToHex({
+      h: dominantHsl.h,
+      s: Math.min(0.6, Math.max(0.1, dominantHsl.s)),
+      l: Math.max(0.12, Math.min(0.35, dominantHsl.l)),
+    }),
+    muted: hslToHex({
+      h: mutedRaw.h,
+      s: Math.max(0.05, Math.min(0.25, mutedRaw.s * 0.5)),
+      l: Math.max(0.1, Math.min(0.25, mutedRaw.l)),
+    }),
     light: finalLight,
     dark: finalDark,
   };

@@ -2,13 +2,13 @@ import type { PaletteColors } from "../types/lastfm";
 
 // Pastel gradient palettes — landing page picks one at random, click to cycle
 export const PASTEL_PALETTES = [
-  { from: "#c4b5fd", to: "#f0abfc", name: "violet" },     // violet → fuchsia
-  { from: "#93c5fd", to: "#a5f3fc", name: "sky" },         // sky → cyan
-  { from: "#fca5a5", to: "#fdba74", name: "sunset" },      // rose → amber
-  { from: "#86efac", to: "#67e8f9", name: "mint" },        // emerald → cyan
-  { from: "#fbbf24", to: "#f472b6", name: "golden" },      // amber → pink
-  { from: "#a78bfa", to: "#60a5fa", name: "indigo" },      // purple → blue
-  { from: "#f9a8d4", to: "#fde68a", name: "candy" },       // pink → yellow
+  { from: "#c4b5fd", to: "#f0abfc", name: "violet" }, // violet → fuchsia
+  { from: "#93c5fd", to: "#a5f3fc", name: "sky" }, // sky → cyan
+  { from: "#fca5a5", to: "#fdba74", name: "sunset" }, // rose → amber
+  { from: "#86efac", to: "#67e8f9", name: "mint" }, // emerald → cyan
+  { from: "#fbbf24", to: "#f472b6", name: "golden" }, // amber → pink
+  { from: "#a78bfa", to: "#60a5fa", name: "indigo" }, // purple → blue
+  { from: "#f9a8d4", to: "#fde68a", name: "candy" }, // pink → yellow
 ] as const;
 
 export function randomPaletteIndex(): number {

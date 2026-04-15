@@ -45,14 +45,16 @@ function StatCard({
         {label}
       </span>
       <ScrollingText className="text-xl font-bold tabular-nums">
-        <span style={{ color: color ?? "rgba(255,255,255,0.85)" }}>{value}</span>
+        <span style={{ color: color ?? "rgba(255,255,255,0.85)" }}>
+          {value}
+        </span>
         {suffix && (
-          <span className="text-sm font-normal text-white/25 ml-1.5">{suffix}</span>
+          <span className="text-sm font-normal text-white/25 ml-1.5">
+            {suffix}
+          </span>
         )}
       </ScrollingText>
-      {sub && (
-        <span className="text-[11px] text-white/30 truncate">{sub}</span>
-      )}
+      {sub && <span className="text-[11px] text-white/30 truncate">{sub}</span>}
     </motion.div>
   );
 }
@@ -66,12 +68,14 @@ async function generateShareImage(
   artworkUrl?: string,
   currentTrack?: { title: string; artist: string } | null,
 ): Promise<Blob> {
-  const W = 1080, H = 1350; // vertical, IG-friendly
+  const W = 1080,
+    H = 1350; // vertical, IG-friendly
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
-  const font = (w: number, style = "") => `${style} ${w}px Inter, system-ui, sans-serif`.trim();
+  const font = (w: number, style = "") =>
+    `${style} ${w}px Inter, system-ui, sans-serif`.trim();
   const PAD = 60;
 
   // Background
@@ -98,7 +102,9 @@ async function generateShareImage(
           .replace(/\d+x\d+(?=\.\w+$)/, "1200x1200");
         i.src = `/api/artwork?url=${encodeURIComponent(hiResUrl)}`;
       });
-    } catch { /* */ }
+    } catch {
+      /* */
+    }
   }
 
   // Blurred art background (cover-fit, not stretched)
@@ -112,7 +118,14 @@ async function generateShareImage(
   }
 
   // Vignette
-  const vig = ctx.createRadialGradient(W / 2, H * 0.35, 100, W / 2, H * 0.35, W * 0.8);
+  const vig = ctx.createRadialGradient(
+    W / 2,
+    H * 0.35,
+    100,
+    W / 2,
+    H * 0.35,
+    W * 0.8,
+  );
   vig.addColorStop(0, "rgba(0,0,0,0)");
   vig.addColorStop(1, "rgba(0,0,0,0.6)");
   ctx.fillStyle = vig;
@@ -249,7 +262,10 @@ async function generateShareImage(
       ctx.fillStyle = "rgba(255,255,255,0.8)";
       ctx.font = font(20, "bold");
       let name = a.name;
-      while (ctx.measureText(name).width > W - PAD * 2 - 200 && name.length > 3) {
+      while (
+        ctx.measureText(name).width > W - PAD * 2 - 200 &&
+        name.length > 3
+      ) {
         name = name.slice(0, -2) + "…";
       }
       ctx.fillText(name, PAD + 30, y);
@@ -306,7 +322,7 @@ async function generateShareImage(
   const brandFull = `ryplay.dev/${username}`;
   const brandFullW = ctx.measureText(brandFull).width;
   ctx.measureText("ry").width;
-// Draw full string in white first
+  // Draw full string in white first
   ctx.fillStyle = "rgba(255,255,255,0.25)";
   ctx.fillText(brandFull, W - PAD, H - PAD);
   // Overdraw "ry" in accent at the same position
@@ -318,7 +334,12 @@ async function generateShareImage(
   return new Promise((res) => canvas.toBlob((b) => res(b!), "image/png"));
 }
 
-export default function StatsPanel({ username, colors, artworkUrl, currentTrack }: Props) {
+export default function StatsPanel({
+  username,
+  colors,
+  artworkUrl,
+  currentTrack,
+}: Props) {
   const { stats, loading } = useStats(username);
   const vibrant = colors.vibrant;
   const shareRef = useRef(false);
@@ -328,13 +349,28 @@ export default function StatsPanel({ username, colors, artworkUrl, currentTrack 
     if (!stats || shareRef.current) return;
     shareRef.current = true;
     try {
-      const blob = await generateShareImage(stats, colors, username, artworkUrl, currentTrack);
-      const file = new File([blob], `ryplay-${username}.png`, { type: "image/png" });
+      const blob = await generateShareImage(
+        stats,
+        colors,
+        username,
+        artworkUrl,
+        currentTrack,
+      );
+      const file = new File([blob], `ryplay-${username}.png`, {
+        type: "image/png",
+      });
 
       // Mobile: native share sheet
       const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-      if (isMobile && navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: `${username} on ryplay` });
+      if (
+        isMobile &&
+        navigator.share &&
+        navigator.canShare?.({ files: [file] })
+      ) {
+        await navigator.share({
+          files: [file],
+          title: `${username} on ryplay`,
+        });
       }
       // Desktop: copy to clipboard
       else if (navigator.clipboard?.write) {
@@ -363,17 +399,26 @@ export default function StatsPanel({ username, colors, artworkUrl, currentTrack 
     <div className="flex flex-col gap-4">
       {/* Section header */}
       <div className="flex items-center gap-2 px-1">
-        <div className="h-px flex-1" style={{ background: `${colors.muted}40` }} />
+        <div
+          className="h-px flex-1"
+          style={{ background: `${colors.muted}40` }}
+        />
         <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">
           Profile
         </span>
-        <div className="h-px flex-1" style={{ background: `${colors.muted}40` }} />
+        <div
+          className="h-px flex-1"
+          style={{ background: `${colors.muted}40` }}
+        />
       </div>
 
       {loading || !stats ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {Array.from({ length: 9 }).map((_, i) => (
-            <div key={i} className="h-20 rounded-xl bg-white/[0.04] animate-pulse" />
+            <div
+              key={i}
+              className="h-20 rounded-xl bg-white/[0.04] animate-pulse"
+            />
           ))}
         </div>
       ) : (
@@ -383,7 +428,11 @@ export default function StatsPanel({ username, colors, artworkUrl, currentTrack 
             <StatCard
               label="Total Scrobbles"
               value={(stats.totalScrobbles ?? 0).toLocaleString()}
-              suffix={stats.avgDaily ? `${stats.avgDaily.toLocaleString()}/day` : undefined}
+              suffix={
+                stats.avgDaily
+                  ? `${stats.avgDaily.toLocaleString()}/day`
+                  : undefined
+              }
               delay={0}
               color={vibrant}
             />
@@ -400,16 +449,37 @@ export default function StatsPanel({ username, colors, artworkUrl, currentTrack 
                 color={vibrant}
               />
             ) : (
-              <StatCard label="Albums" value={(stats.totalAlbums ?? 0).toLocaleString()} delay={0.08} />
+              <StatCard
+                label="Albums"
+                value={(stats.totalAlbums ?? 0).toLocaleString()}
+                delay={0.08}
+              />
             )}
 
             {/* Row 2 */}
-            <StatCard label="Artists" value={(stats.totalArtists ?? 0).toLocaleString()} delay={0.12} />
-            <StatCard label="Tracks" value={(stats.totalTracks ?? 0).toLocaleString()} delay={0.16} color={vibrant} />
+            <StatCard
+              label="Artists"
+              value={(stats.totalArtists ?? 0).toLocaleString()}
+              delay={0.12}
+            />
+            <StatCard
+              label="Tracks"
+              value={(stats.totalTracks ?? 0).toLocaleString()}
+              delay={0.16}
+              color={vibrant}
+            />
             {stats.topGenre ? (
-              <StatCard label="Albums" value={(stats.totalAlbums ?? 0).toLocaleString()} delay={0.2} />
+              <StatCard
+                label="Albums"
+                value={(stats.totalAlbums ?? 0).toLocaleString()}
+                delay={0.2}
+              />
             ) : (
-              <StatCard label="Albums" value={(stats.totalAlbums ?? 0).toLocaleString()} delay={0.2} />
+              <StatCard
+                label="Albums"
+                value={(stats.totalAlbums ?? 0).toLocaleString()}
+                delay={0.2}
+              />
             )}
 
             {/* Row 3 */}

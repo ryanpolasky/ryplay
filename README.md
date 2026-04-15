@@ -20,13 +20,13 @@ Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 
 ## Tech Stack
 
-| Layer | Tech |
-|-------|------|
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Framer Motion |
-| Backend | Python, FastAPI, httpx |
+| Layer            | Tech                                                                 |
+| ---------------- | -------------------------------------------------------------------- |
+| Frontend         | React 19, TypeScript, Vite, Tailwind CSS v4, Framer Motion           |
+| Backend          | Python, FastAPI, httpx                                               |
 | Color Extraction | Canvas-based median-cut quantization (node-vibrant/browser fallback) |
-| Artwork Fallback | iTunes Search API |
-| Genre Data | iTunes/Apple Music artist genre lookups |
+| Artwork Fallback | iTunes Search API                                                    |
+| Genre Data       | iTunes/Apple Music artist genre lookups                              |
 
 ## Setup
 
@@ -64,15 +64,15 @@ Vite proxies `/api` to the FastAPI backend on port 8000.
 
 ## API Endpoints
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/music?user=` | Now playing + recent tracks with streak detection and artwork fallback |
-| `GET /api/music/stats?user=` | Profile overview: all-time stats, #1 artist/track/album, top genre |
-| `GET /api/top?type=&user=&period=&limit=` | Top artists/tracks/albums with iTunes artwork fallback |
-| `GET /api/genres?user=&period=` | Genre breakdown via iTunes artist genre lookups |
-| `GET /api/clock?user=` | Listening clock heatmap (2000 tracks, 7x24 grid) |
-| `GET /api/artwork?url=` | CORS-compliant image proxy for color extraction |
-| `GET /api/lastfm` | Generic Last.fm API proxy |
+| Endpoint                                  | Description                                                            |
+| ----------------------------------------- | ---------------------------------------------------------------------- |
+| `GET /api/music?user=`                    | Now playing + recent tracks with streak detection and artwork fallback |
+| `GET /api/music/stats?user=`              | Profile overview: all-time stats, #1 artist/track/album, top genre     |
+| `GET /api/top?type=&user=&period=&limit=` | Top artists/tracks/albums with iTunes artwork fallback                 |
+| `GET /api/genres?user=&period=`           | Genre breakdown via iTunes artist genre lookups                        |
+| `GET /api/clock?user=`                    | Listening clock heatmap (2000 tracks, 7x24 grid)                       |
+| `GET /api/artwork?url=`                   | CORS-compliant image proxy for color extraction                        |
+| `GET /api/lastfm`                         | Generic Last.fm API proxy                                              |
 
 ## Project Structure
 

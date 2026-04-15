@@ -10,31 +10,45 @@ interface Props {
   visible?: boolean;
 }
 
-export default function NavDots({ panels, activePage, colors, onNavigate, visible = true }: Props) {
+export default function NavDots({
+  panels,
+  activePage,
+  colors,
+  onNavigate,
+  visible = true,
+}: Props) {
   const [hovered, setHovered] = useState(false);
 
   return (
     <motion.div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      animate={{ opacity: visible || hovered ? 1 : 0, x: visible || hovered ? 0 : -8 }}
+      animate={{
+        opacity: visible || hovered ? 1 : 0,
+        x: visible || hovered ? 0 : -8,
+      }}
       transition={{ duration: 0.5, ease: "easeInOut" }}
       className="fixed left-3 top-1/2 -translate-y-1/2 z-20 hidden md:flex flex-col"
-      style={{ padding: "8px", pointerEvents: visible || hovered ? "auto" : "none" }}
+      style={{
+        padding: "8px",
+        pointerEvents: visible || hovered ? "auto" : "none",
+      }}
     >
       {/* Glass backdrop — fades in on hover */}
       <motion.div
-          className="absolute inset-0 rounded-2xl pointer-events-none"
-          initial={false}
-          animate={{
-            backgroundColor: hovered ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0)",
-            backdropFilter: hovered ? "blur(16px)" : "blur(0px)",
-          }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          style={{
-            WebkitBackdropFilter: hovered ? "blur(16px)" : "blur(0px)",
-            border: hovered ? "1px solid rgba(255,255,255,0.08)" : "1px solid transparent",
-          }}
+        className="absolute inset-0 rounded-2xl pointer-events-none"
+        initial={false}
+        animate={{
+          backgroundColor: hovered ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0)",
+          backdropFilter: hovered ? "blur(16px)" : "blur(0px)",
+        }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        style={{
+          WebkitBackdropFilter: hovered ? "blur(16px)" : "blur(0px)",
+          border: hovered
+            ? "1px solid rgba(255,255,255,0.08)"
+            : "1px solid transparent",
+        }}
       />
 
       {/* Items */}
@@ -52,9 +66,8 @@ export default function NavDots({ panels, activePage, colors, onNavigate, visibl
                 paddingBottom: hovered ? 6 : 3,
                 paddingLeft: hovered ? 8 : 4,
                 paddingRight: hovered ? 12 : 4,
-                backgroundColor: hovered && isActive
-                  ? `${colors.vibrant}18`
-                  : "rgba(0,0,0,0)",
+                backgroundColor:
+                  hovered && isActive ? `${colors.vibrant}18` : "rgba(0,0,0,0)",
               }}
               whileHover={{
                 backgroundColor: `${colors.vibrant}12`,
@@ -67,7 +80,9 @@ export default function NavDots({ panels, activePage, colors, onNavigate, visibl
                 animate={{
                   width: isActive ? 7 : 5,
                   height: isActive ? 7 : 5,
-                  backgroundColor: isActive ? colors.vibrant : "rgba(255,255,255,0.18)",
+                  backgroundColor: isActive
+                    ? colors.vibrant
+                    : "rgba(255,255,255,0.18)",
                   boxShadow: isActive
                     ? `0 0 8px ${colors.vibrant}60`
                     : "0 0 0px transparent",

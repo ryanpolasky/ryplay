@@ -41,14 +41,21 @@ export default function Dashboard() {
   const [activePage, setActivePage] = useState(0);
   const [colors, setColors] = useState<PaletteColors>(DEFAULT_PALETTE);
   const [chromeVisible, setChromeVisible] = useState(true);
-  const [toast, setToast] = useState<{ title: string; artist: string; artworkUrl?: string } | null>(null);
+  const [toast, setToast] = useState<{
+    title: string;
+    artist: string;
+    artworkUrl?: string;
+  } | null>(null);
   const prevTitleRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLElement>(null);
   const idleTimer = useRef<number>(0);
   const wakeChrome = useCallback(() => {
     setChromeVisible(true);
     clearTimeout(idleTimer.current);
-    idleTimer.current = window.setTimeout(() => setChromeVisible(false), 15_000);
+    idleTimer.current = window.setTimeout(
+      () => setChromeVisible(false),
+      15_000,
+    );
   }, []);
 
   const { music, loading: musicLoading } = useNowPlaying(username!);
@@ -64,16 +71,23 @@ export default function Dashboard() {
 
   // Update tab title with current track
   useEffect(() => {
-    document.title = music?.title
-      ? `ryplay | ${music.title}`
-      : "ryplay";
+    document.title = music?.title ? `ryplay | ${music.title}` : "ryplay";
   }, [music?.title]);
 
   // Show toast when track changes while not on now-playing page
   useEffect(() => {
     const newTitle = music?.title ?? null;
-    if (prevTitleRef.current !== null && newTitle && newTitle !== prevTitleRef.current && activePage !== 0) {
-      setToast({ title: newTitle, artist: music?.artist ?? "", artworkUrl: music?.artworkUrl });
+    if (
+      prevTitleRef.current !== null &&
+      newTitle &&
+      newTitle !== prevTitleRef.current &&
+      activePage !== 0
+    ) {
+      setToast({
+        title: newTitle,
+        artist: music?.artist ?? "",
+        artworkUrl: music?.artworkUrl,
+      });
       const timer = setTimeout(() => setToast(null), 4000);
       prevTitleRef.current = newTitle;
       return () => clearTimeout(timer);
@@ -173,12 +187,16 @@ export default function Dashboard() {
       >
         <Logo colors={colors} hasArtwork={isExtracted} className="text-base" />
         <div className="group/user relative">
-          <span className="text-sm text-white/40 cursor-default">{username}</span>
+          <span className="text-sm text-white/40 cursor-default">
+            {username}
+          </span>
           <button
             onClick={() => setUsername(null)}
             className="absolute top-full right-0 mt-1 text-[10px] text-white/30 hover:text-white/60 tracking-wide uppercase whitespace-nowrap cursor-pointer opacity-0 translate-y-[-4px] group-hover/user:opacity-100 group-hover/user:translate-y-0 transition-all duration-200 ease-out"
           >
-            {localStorage.getItem("ryplay-username") ? "disconnect" : "try yours"}
+            {localStorage.getItem("ryplay-username")
+              ? "disconnect"
+              : "try yours"}
           </button>
         </div>
       </motion.header>
@@ -213,7 +231,10 @@ export default function Dashboard() {
 
         <Panel id="recent">
           <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full">
-            <RecentlyPlayed tracks={music?.recentTracks ?? []} colors={colors} />
+            <RecentlyPlayed
+              tracks={music?.recentTracks ?? []}
+              colors={colors}
+            />
           </div>
         </Panel>
 
@@ -223,14 +244,36 @@ export default function Dashboard() {
               username={username}
               colors={colors}
               artworkUrl={music?.artworkUrl}
-              currentTrack={music?.isPlaying && music?.title ? { title: music.title, artist: music.artist ?? "" } : null}
+              currentTrack={
+                music?.isPlaying && music?.title
+                  ? { title: music.title, artist: music.artist ?? "" }
+                  : null
+              }
             />
           </div>
         </Panel>
 
-        <TopList username={username} type="artists" title="Top Artists" id="top-artists" colors={colors} />
-        <TopList username={username} type="tracks" title="Top Tracks" id="top-tracks" colors={colors} />
-        <TopList username={username} type="albums" title="Top Albums" id="top-albums" colors={colors} />
+        <TopList
+          username={username}
+          type="artists"
+          title="Top Artists"
+          id="top-artists"
+          colors={colors}
+        />
+        <TopList
+          username={username}
+          type="tracks"
+          title="Top Tracks"
+          id="top-tracks"
+          colors={colors}
+        />
+        <TopList
+          username={username}
+          type="albums"
+          title="Top Albums"
+          id="top-albums"
+          colors={colors}
+        />
 
         <GenreBreakdown username={username} colors={colors} />
         <ListeningClock username={username} colors={colors} />

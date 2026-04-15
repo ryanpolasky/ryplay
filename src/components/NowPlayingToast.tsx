@@ -9,7 +9,13 @@ interface Props {
   onClose: () => void;
 }
 
-export default function NowPlayingToast({ title, artist, artworkUrl, colors, onClose }: Props) {
+export default function NowPlayingToast({
+  title,
+  artist,
+  artworkUrl,
+  colors,
+  onClose,
+}: Props) {
   const proxyUrl = artworkUrl
     ? `/api/artwork?url=${encodeURIComponent(artworkUrl)}`
     : null;

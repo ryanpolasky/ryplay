@@ -17,9 +17,7 @@ interface Props {
 }
 
 function SkeletonLine({ w = "w-32" }: { w?: string }) {
-  return (
-    <div className={`h-4 ${w} rounded-md bg-white/5 animate-pulse`} />
-  );
+  return <div className={`h-4 ${w} rounded-md bg-white/5 animate-pulse`} />;
 }
 
 export default function TrackCard({

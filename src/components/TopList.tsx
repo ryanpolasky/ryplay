@@ -25,11 +25,17 @@ export default function TopList({ username, type, title, id, colors }: Props) {
     <Panel id={id}>
       {/* Section header */}
       <div className="flex items-center gap-2 px-1 mb-4">
-        <div className="h-px flex-1" style={{ background: `${colors.muted}40` }} />
+        <div
+          className="h-px flex-1"
+          style={{ background: `${colors.muted}40` }}
+        />
         <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">
           {title}
         </span>
-        <div className="h-px flex-1" style={{ background: `${colors.muted}40` }} />
+        <div
+          className="h-px flex-1"
+          style={{ background: `${colors.muted}40` }}
+        />
       </div>
 
       <div className="flex justify-center sm:justify-end mb-6">
@@ -69,17 +75,27 @@ export default function TopList({ username, type, title, id, colors }: Props) {
 
                 <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-white/5 ring-1 ring-white/10">
                   {proxyUrl ? (
-                    <img src={proxyUrl} alt="" className="h-full w-full object-cover" />
+                    <img
+                      src={proxyUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-white/20 text-xs">♪</div>
+                    <div className="flex h-full w-full items-center justify-center text-white/20 text-xs">
+                      ♪
+                    </div>
                   )}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2 mb-0.5">
-                    <span className="text-sm font-medium text-white/80 truncate">{item.name}</span>
+                    <span className="text-sm font-medium text-white/80 truncate">
+                      {item.name}
+                    </span>
                     {item.subtitle && (
-                      <span className="text-xs text-white/30 truncate hidden sm:block">{item.subtitle}</span>
+                      <span className="text-xs text-white/30 truncate hidden sm:block">
+                        {item.subtitle}
+                      </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2">

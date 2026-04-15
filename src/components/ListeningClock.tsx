@@ -52,11 +52,17 @@ export default function ListeningClock({ username, colors }: Props) {
     <Panel id="clock">
       {/* Section header */}
       <div className="flex items-center gap-2 px-1 mb-8">
-        <div className="h-px flex-1" style={{ background: `${colors.muted}40` }} />
+        <div
+          className="h-px flex-1"
+          style={{ background: `${colors.muted}40` }}
+        />
         <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">
           Listening Clock
         </span>
-        <div className="h-px flex-1" style={{ background: `${colors.muted}40` }} />
+        <div
+          className="h-px flex-1"
+          style={{ background: `${colors.muted}40` }}
+        />
       </div>
 
       {loading ? (
@@ -74,7 +80,10 @@ export default function ListeningClock({ username, colors }: Props) {
               <div />
               <div />
               {HOURS.map((h) => (
-                <div key={h} className="text-[10px] text-white/20 text-center pb-1 min-w-[18px]">
+                <div
+                  key={h}
+                  className="text-[10px] text-white/20 text-center pb-1 min-w-[18px]"
+                >
                   {h % 3 === 0 ? hourLabel(h) : ""}
                 </div>
               ))}
@@ -84,10 +93,14 @@ export default function ListeningClock({ username, colors }: Props) {
                 const isToday = rowI === 6;
                 return (
                   <Fragment key={`${row.name}-${row.date}`}>
-                    <div className={`text-xs pr-1.5 flex items-center ${isToday ? "text-white/60 font-medium" : "text-white/30"}`}>
+                    <div
+                      className={`text-xs pr-1.5 flex items-center ${isToday ? "text-white/60 font-medium" : "text-white/30"}`}
+                    >
                       {row.name}
                     </div>
-                    <div className={`text-[10px] pr-2 flex items-center tabular-nums ${isToday ? "text-white/40" : "text-white/15"}`}>
+                    <div
+                      className={`text-[10px] pr-2 flex items-center tabular-nums ${isToday ? "text-white/40" : "text-white/15"}`}
+                    >
                       {row.date}
                     </div>
                     {HOURS.map((hour) => {
@@ -106,7 +119,9 @@ export default function ListeningClock({ username, colors }: Props) {
                               count === 0
                                 ? "rgba(255,255,255,0.03)"
                                 : `color-mix(in srgb, ${colors.vibrant} ${Math.max(20, Math.round(intensity * 100))}%, transparent)`,
-                            outline: isNow ? `1.5px solid ${colors.vibrant}` : undefined,
+                            outline: isNow
+                              ? `1.5px solid ${colors.vibrant}`
+                              : undefined,
                             outlineOffset: isNow ? "1px" : undefined,
                           }}
                           title={`${row.name} ${row.date} ${hourLabel(hour)}: ${count} scrobbles${isNow ? " (now)" : ""}`}

@@ -16,7 +16,11 @@ const PERIODS: Period[] = [
   "overall",
 ];
 
-export default function PeriodSelector({ value, onChange, id = "default" }: Props) {
+export default function PeriodSelector({
+  value,
+  onChange,
+  id = "default",
+}: Props) {
   return (
     <div className="flex gap-0.5 p-1 rounded-lg bg-white/5 ring-1 ring-white/10">
       {PERIODS.map((p) => (

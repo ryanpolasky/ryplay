@@ -19,11 +19,17 @@ export default function GenreBreakdown({ username, colors }: Props) {
     <Panel id="genres">
       {/* Section header */}
       <div className="flex items-center gap-2 px-1 mb-4">
-        <div className="h-px flex-1" style={{ background: `${colors.muted}40` }} />
+        <div
+          className="h-px flex-1"
+          style={{ background: `${colors.muted}40` }}
+        />
         <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">
           Genres
         </span>
-        <div className="h-px flex-1" style={{ background: `${colors.muted}40` }} />
+        <div
+          className="h-px flex-1"
+          style={{ background: `${colors.muted}40` }}
+        />
       </div>
 
       <div className="flex justify-center sm:justify-end mb-6">
@@ -68,7 +74,11 @@ export default function GenreBreakdown({ username, colors }: Props) {
                     }}
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}
-                    transition={{ duration: 0.6, delay: i * 0.05, ease: "easeOut" }}
+                    transition={{
+                      duration: 0.6,
+                      delay: i * 0.05,
+                      ease: "easeOut",
+                    }}
                   />
 
                   {/* Inner glow on hover */}

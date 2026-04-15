@@ -33,7 +33,8 @@ export default function AmbientBackground({ colors, artworkUrl }: Props) {
       <div
         className="absolute inset-0"
         style={{
-          background: "radial-gradient(ellipse at center, rgba(6,6,9,0.4) 0%, rgba(6,6,9,0.85) 70%, rgba(6,6,9,0.95) 100%)",
+          background:
+            "radial-gradient(ellipse at center, rgba(6,6,9,0.4) 0%, rgba(6,6,9,0.85) 70%, rgba(6,6,9,0.95) 100%)",
         }}
       />
 

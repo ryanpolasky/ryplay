@@ -33,11 +33,21 @@ function timeAgo(ts: number): string {
 
 function streakRowStyle(tier: number, accent: string) {
   if (tier === 0) return {};
-  if (tier === 1) return { background: `${accent}08`, borderLeft: `2px solid ${accent}20` };
-  if (tier === 2) return { background: `${accent}0c`, borderLeft: `2px solid ${accent}35` };
-  if (tier === 3) return { background: `${accent}12`, borderLeft: `2px solid ${accent}50` };
-  if (tier === 4) return { background: `linear-gradient(90deg, ${accent}18 0%, transparent 100%)`, borderLeft: `2px solid ${accent}70` };
-  return { background: `linear-gradient(90deg, ${accent}22 0%, ${accent}08 60%, transparent 100%)`, borderLeft: `2px solid ${accent}90` };
+  if (tier === 1)
+    return { background: `${accent}08`, borderLeft: `2px solid ${accent}20` };
+  if (tier === 2)
+    return { background: `${accent}0c`, borderLeft: `2px solid ${accent}35` };
+  if (tier === 3)
+    return { background: `${accent}12`, borderLeft: `2px solid ${accent}50` };
+  if (tier === 4)
+    return {
+      background: `linear-gradient(90deg, ${accent}18 0%, transparent 100%)`,
+      borderLeft: `2px solid ${accent}70`,
+    };
+  return {
+    background: `linear-gradient(90deg, ${accent}22 0%, ${accent}08 60%, transparent 100%)`,
+    borderLeft: `2px solid ${accent}90`,
+  };
 }
 
 function StreakBadge({ streak, accent }: { streak: number; accent: string }) {
@@ -136,7 +146,11 @@ export default function RecentlyPlayed({ tracks, colors }: Props) {
                       `inset 0 0 ${tier >= 5 ? "12px" : "8px"} ${accent}${tier >= 5 ? "25" : "15"}`,
                     ],
                   }}
-                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                 />
               )}
 
@@ -157,7 +171,13 @@ export default function RecentlyPlayed({ tracks, colors }: Props) {
                           background: `linear-gradient(to top, ${accent}${tier >= 5 ? "40" : "25"}, ${accent}${tier >= 5 ? "18" : "0c"})`,
                         }}
                         animate={{
-                          height: [`${baseH}%`, `${peakH}%`, `${midH}%`, `${peakH - 15}%`, `${baseH}%`],
+                          height: [
+                            `${baseH}%`,
+                            `${peakH}%`,
+                            `${midH}%`,
+                            `${peakH - 15}%`,
+                            `${baseH}%`,
+                          ],
                         }}
                         transition={{
                           duration: 0.6 + seed * 0.08,
@@ -174,15 +194,23 @@ export default function RecentlyPlayed({ tracks, colors }: Props) {
               {/* Thumbnail */}
               <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md bg-white/5 ring-1 ring-white/10 z-10">
                 {proxyArt ? (
-                  <img src={proxyArt} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={proxyArt}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-white/20 text-xs">♪</div>
+                  <div className="flex h-full w-full items-center justify-center text-white/20 text-xs">
+                    ♪
+                  </div>
                 )}
               </div>
 
               {/* Text */}
               <div className="min-w-0 flex-1 z-10">
-                <p className="truncate text-sm font-medium text-white/80">{track.title}</p>
+                <p className="truncate text-sm font-medium text-white/80">
+                  {track.title}
+                </p>
                 <p className="truncate text-xs text-white/40">{track.artist}</p>
               </div>
 
