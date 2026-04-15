@@ -91,10 +91,4 @@ ryplay/
   music-ref/            # Reference code from wrlt
 ```
 
-## License
-
-MIT
-
----
-
 Built with <3 by [ryanpolasky](https://linkedin.com/in/ryan-polasky)
