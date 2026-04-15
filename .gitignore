@@ -1,0 +1,35 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+listening/node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+/backend/.env
+/reference
+/backend/chat_history.jsonl
+/backend/clicktest_leaderboard.jsonl
+/backend/crashdle_history.jsonl
+/backend/typing_leaderboard.jsonl
+*-ideas.md
+node_modules/
+backend/__pycache__/
+/backend/rycraft_world.dat
+/backend/cookies.txt
