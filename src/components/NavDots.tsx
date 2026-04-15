@@ -24,17 +24,17 @@ export default function NavDots({ panels, activePage, colors, onNavigate, visibl
     >
       {/* Glass backdrop — fades in on hover */}
       <motion.div
-        className="absolute inset-0 rounded-2xl pointer-events-none"
-        initial={false}
-        animate={{
-          backgroundColor: hovered ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0)",
-          backdropFilter: hovered ? "blur(16px)" : "blur(0px)",
-          WebkitBackdropFilter: hovered ? "blur(16px)" : "blur(0px)",
-        }}
-        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        style={{
-          border: hovered ? "1px solid rgba(255,255,255,0.08)" : "1px solid transparent",
-        }}
+          className="absolute inset-0 rounded-2xl pointer-events-none"
+          initial={false}
+          animate={{
+            backgroundColor: hovered ? "rgba(0,0,0,0.5)" : "rgba(0,0,0,0)",
+            backdropFilter: hovered ? "blur(16px)" : "blur(0px)",
+          }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          style={{
+            WebkitBackdropFilter: hovered ? "blur(16px)" : "blur(0px)",
+            border: hovered ? "1px solid rgba(255,255,255,0.08)" : "1px solid transparent",
+          }}
       />
 
       {/* Items */}

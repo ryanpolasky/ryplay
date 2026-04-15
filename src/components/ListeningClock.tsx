@@ -13,7 +13,7 @@ function hourLabel(h: number): string {
   return h < 12 ? `${h}a` : `${h - 12}p`;
 }
 
-function getDateForRow(todayIdx: number, rowOffset: number): string {
+function getDateForRow(_todayIdx: number, rowOffset: number): string {
   const d = new Date();
   // rowOffset 0 = 7 days ago (top), rowOffset 6 = today (bottom)
   d.setDate(d.getDate() - (6 - rowOffset));

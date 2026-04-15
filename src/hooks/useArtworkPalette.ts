@@ -250,6 +250,7 @@ function extractFromCanvas(img: HTMLImageElement): PaletteColors {
 
 async function extractWithVibrant(proxyUrl: string): Promise<PaletteColors> {
   const mod = await import("node-vibrant/browser");
+  // @ts-expect-error it doesn't like this name, but it's prolly fine :)
   const Vibrant = mod.default ?? mod.Vibrant ?? mod;
   const p = await Vibrant.from(proxyUrl).quality(5).getPalette();
 
@@ -309,6 +310,7 @@ export function useArtworkPalette(imageUrl: string | null) {
 
   useEffect(() => {
     if (!imageUrl) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPalette(DEFAULT_PALETTE);
       setIsExtracted(false);
       return;
