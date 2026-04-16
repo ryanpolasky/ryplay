@@ -134,7 +134,7 @@ async def _search_deezer_track(client: httpx.AsyncClient, query: str) -> str | N
     return None
 
 
-async def _resolve_artwork(client: httpx.AsyncClient, artist: str, title: str, lastfm_url: str | None) -> str:
+async def _resolve_artwork(client: httpx.AsyncClient, artist: str, title: str, lastfm_url: str | None, album: str = "") -> str:
     if not _is_placeholder(lastfm_url):
         return lastfm_url or ""
 
@@ -143,9 +143,15 @@ async def _resolve_artwork(client: httpx.AsyncClient, artist: str, title: str, l
     if cached is not ...:
         return cached or ""
 
-    itunes_url = await _search_itunes(client, artist, title)
-    _set_cached_artwork(track_id, itunes_url)
-    return itunes_url or ""
+    # Chain: Deezer track → iTunes song → iTunes album
+    query = f"{artist} {title}"
+    art = await _search_deezer_track(client, query)
+    if not art:
+        art = await _search_itunes(client, artist, title)
+    if not art and album:
+        art = await _search_itunes_entity(client, f"{artist} {album}", "album")
+    _set_cached_artwork(track_id, art)
+    return art or ""
 
 
 def _extract_recent_tracks(tracks: list, client: httpx.AsyncClient) -> list[dict]:
@@ -189,7 +195,7 @@ async def _resolve_artwork_batch(client: httpx.AsyncClient, tracks: list[dict]) 
     tasks = []
     for track in tracks:
         if _is_placeholder(track.get("artworkUrl")):
-            tasks.append((track, _resolve_artwork(client, track["artist"], track["title"], track.get("artworkUrl"))))
+            tasks.append((track, _resolve_artwork(client, track["artist"], track["title"], track.get("artworkUrl"), track.get("album", ""))))
 
     if tasks:
         results = await asyncio.gather(*(t[1] for t in tasks), return_exceptions=True)
@@ -266,7 +272,7 @@ async def get_music(user: str = Query(..., min_length=1), request: Request = Non
         artist = now_playing.get("artist", {}).get("#text", "")
         album = now_playing.get("album", {}).get("#text", "")
         raw_art = _pick_image(now_playing)
-        artwork_url = await _resolve_artwork(client, artist, title, raw_art)
+        artwork_url = await _resolve_artwork(client, artist, title, raw_art, album)
 
         result = {
             "isPlaying": True,
@@ -292,7 +298,7 @@ async def get_music(user: str = Query(..., min_length=1), request: Request = Non
         artist = last.get("artist", {}).get("#text", "")
         album = last.get("album", {}).get("#text", "")
         raw_art = _pick_image(last)
-        artwork_url = await _resolve_artwork(client, artist, title, raw_art)
+        artwork_url = await _resolve_artwork(client, artist, title, raw_art, album)
         date = last.get("date", {})
         timestamp = int(date.get("uts", 0)) if date else 0
 
