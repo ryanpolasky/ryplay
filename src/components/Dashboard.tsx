@@ -182,6 +182,7 @@ export default function Dashboard() {
       if (e.key === "ArrowDown" || e.key === "ArrowRight") {
         e.preventDefault();
         const next = Math.min(PANELS.length - 1, current + 1);
+        // eslint-disable-next-line react-hooks/immutability
         scrollToPage(next);
         wakeChrome();
       } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
