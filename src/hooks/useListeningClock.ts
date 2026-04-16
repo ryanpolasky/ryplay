@@ -13,7 +13,8 @@ export function useListeningClock(username: string) {
     let cancelled = false;
     setLoading(true);
 
-    fetch(`/api/clock?user=${encodeURIComponent(username)}`)
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    fetch(`/api/clock?user=${encodeURIComponent(username)}&tz=${encodeURIComponent(tz)}`)
       .then((res) => {
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         return res.json();

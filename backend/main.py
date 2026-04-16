@@ -575,9 +575,10 @@ CLOCK_CACHE_TTL = 60 * 60  # 1 hour
 
 
 @app.get("/api/clock")
-async def get_listening_clock(user: str = Query(..., min_length=1), request: Request = None):
+async def get_listening_clock(user: str = Query(..., min_length=1), tz: str = Query("UTC"), request: Request = None):
     """Listening heatmap — fetches multiple pages of recent tracks to build a 7x24 grid."""
-    cached = clock_cache.get(user)
+    cache_key = f"{user}:{tz}"
+    cached = clock_cache.get(cache_key)
     if cached and time.time() - cached[1] < CLOCK_CACHE_TTL:
         return cached[0]
 
@@ -585,7 +586,13 @@ async def get_listening_clock(user: str = Query(..., min_length=1), request: Req
     grid = [[0] * 24 for _ in range(7)]  # [day][hour], day 0=Mon
 
     from datetime import datetime, timezone, timedelta
-    now = datetime.now(tz=timezone.utc).astimezone()
+    from zoneinfo import ZoneInfo
+    try:
+        user_tz = ZoneInfo(tz)
+    except (KeyError, Exception):
+        user_tz = ZoneInfo("UTC")
+
+    now = datetime.now(tz=user_tz)
     cutoff = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Fetch up to 10 pages (2000 tracks) for heavy listeners
@@ -610,7 +617,7 @@ async def get_listening_clock(user: str = Query(..., min_length=1), request: Req
             date_info = track.get("date")
             if not date_info or not date_info.get("uts"):
                 continue
-            dt = datetime.fromtimestamp(int(date_info["uts"]), tz=timezone.utc).astimezone()
+            dt = datetime.fromtimestamp(int(date_info["uts"]), tz=timezone.utc).astimezone(user_tz)
             if dt < cutoff:
                 done = True
                 break
@@ -627,7 +634,7 @@ async def get_listening_clock(user: str = Query(..., min_length=1), request: Req
         if page >= total_pages:
             break
 
-    clock_cache[user] = (grid, time.time())
+    clock_cache[cache_key] = (grid, time.time())
     return grid
 
 
