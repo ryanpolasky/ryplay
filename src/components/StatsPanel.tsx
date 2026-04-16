@@ -50,7 +50,9 @@ function StatCard({
       <span className="text-[9px] uppercase tracking-widest text-white/30">
         {label}
       </span>
-      <ScrollingText className={`${hero ? "text-2xl sm:text-xl" : "text-xl"} font-bold tabular-nums`}>
+      <ScrollingText
+        className={`${hero ? "text-2xl sm:text-xl" : "text-xl"} font-bold tabular-nums`}
+      >
         <span style={{ color: color ?? "rgba(255,255,255,0.85)" }}>
           {value}
         </span>
@@ -60,7 +62,11 @@ function StatCard({
           </span>
         )}
       </ScrollingText>
-      {sub && <ScrollingText className="text-[11px] text-white/30">{sub}</ScrollingText>}
+      {sub && (
+        <ScrollingText className="text-[11px] text-white/30">
+          {sub}
+        </ScrollingText>
+      )}
     </motion.div>
   );
 }

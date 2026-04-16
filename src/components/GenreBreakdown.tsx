@@ -57,7 +57,10 @@ export default function GenreBreakdown({ username, colors }: Props) {
         /* ── Mobile: vertical bar chart + legend below ── */
         <div className="flex-1 flex flex-col justify-center items-center gap-5 w-full">
           {/* Bars */}
-          <div className="flex items-end justify-center gap-2 w-full px-2" style={{ height: 180 }}>
+          <div
+            className="flex items-end justify-center gap-2 w-full px-2"
+            style={{ height: 180 }}
+          >
             {genres.map((genre, i) => {
               const pct = (genre.weight / maxWeight) * 100;
               return (

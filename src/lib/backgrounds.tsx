@@ -359,8 +359,18 @@ export const BACKGROUNDS: BackgroundDef[] = [
               opacity: [0.2, 0.35],
             }}
             transition={{
-              scale: { duration: 7, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" },
-              opacity: { duration: 7, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" },
+              scale: {
+                duration: 7,
+                repeat: Infinity,
+                repeatType: "mirror",
+                ease: "easeInOut",
+              },
+              opacity: {
+                duration: 7,
+                repeat: Infinity,
+                repeatType: "mirror",
+                ease: "easeInOut",
+              },
               backgroundColor: { duration: 4, ease: "easeInOut" },
             }}
           />
@@ -381,8 +391,18 @@ export const BACKGROUNDS: BackgroundDef[] = [
               opacity: [0.15, 0.3],
             }}
             transition={{
-              scale: { duration: 9, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" },
-              opacity: { duration: 9, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" },
+              scale: {
+                duration: 9,
+                repeat: Infinity,
+                repeatType: "mirror",
+                ease: "easeInOut",
+              },
+              opacity: {
+                duration: 9,
+                repeat: Infinity,
+                repeatType: "mirror",
+                ease: "easeInOut",
+              },
               backgroundColor: { duration: 4, ease: "easeInOut" },
             }}
           />
@@ -404,8 +424,18 @@ export const BACKGROUNDS: BackgroundDef[] = [
                 opacity: [0.06, 0.15],
               }}
               transition={{
-                scale: { duration: 6, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" },
-                opacity: { duration: 6, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" },
+                scale: {
+                  duration: 6,
+                  repeat: Infinity,
+                  repeatType: "mirror",
+                  ease: "easeInOut",
+                },
+                opacity: {
+                  duration: 6,
+                  repeat: Infinity,
+                  repeatType: "mirror",
+                  ease: "easeInOut",
+                },
                 backgroundColor: { duration: 4, ease: "easeInOut" },
               }}
             />
@@ -603,9 +633,7 @@ export const BACKGROUNDS: BackgroundDef[] = [
               height: isMobile ? "40vw" : "40vh",
               borderRadius: "50%",
               filter: "blur(25px)",
-              animation: isMobile
-                ? "none"
-                : "bg-pulse 8s ease-in-out infinite",
+              animation: isMobile ? "none" : "bg-pulse 8s ease-in-out infinite",
             }}
           />
           <NoiseOverlay />

@@ -41,8 +41,12 @@ export default function NowPlayingToast({
         <p className="text-[10px] uppercase tracking-widest text-white/30 mb-0.5">
           now playing
         </p>
-        <ScrollingText className="text-sm font-medium text-white/80">{title}</ScrollingText>
-        <ScrollingText className="text-xs text-white/40">{artist}</ScrollingText>
+        <ScrollingText className="text-sm font-medium text-white/80">
+          {title}
+        </ScrollingText>
+        <ScrollingText className="text-xs text-white/40">
+          {artist}
+        </ScrollingText>
       </div>
       <div
         className="w-1 h-8 rounded-full shrink-0 ml-1"

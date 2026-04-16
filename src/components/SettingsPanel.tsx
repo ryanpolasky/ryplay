@@ -106,8 +106,6 @@ function PanelContent({
                   }`}
                   style={{
                     ...bg.previewStyle(colors),
-                    ringColor: active ? colors.vibrant : undefined,
-                    borderColor: active ? colors.vibrant : undefined,
                     boxShadow: active
                       ? `0 0 0 2px ${colors.vibrant}`
                       : undefined,
