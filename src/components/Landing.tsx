@@ -20,7 +20,9 @@ export default function Landing() {
   );
   const [paletteIdx, setPaletteIdx] = useState(() => randomPaletteIndex());
   const peekBtnRef = useRef<HTMLButtonElement>(null);
-  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
 
   // Measure button position + auto-dismiss for peek hint
   useEffect(() => {
@@ -50,20 +52,6 @@ export default function Landing() {
       setTooltipPos(null);
     };
   }, [showPeekHint]);
-
-  // Ctrl+R to reset all ryplay localStorage
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "r") {
-        e.preventDefault();
-        localStorage.removeItem("ryplay-username");
-        localStorage.removeItem("ryplay-settings");
-        window.location.replace("/");
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   const palette = PASTEL_PALETTES[paletteIdx];
 

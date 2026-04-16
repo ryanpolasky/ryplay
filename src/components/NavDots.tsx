@@ -20,7 +20,8 @@ export default function NavDots({
   const [hovered, setHovered] = useState(false);
 
   return (
-    <motion.div
+    <motion.nav
+      aria-label="Panel navigation"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       animate={{
@@ -60,7 +61,8 @@ export default function NavDots({
             <motion.button
               key={p.id}
               onClick={() => onNavigate(i)}
-              className="relative flex items-center gap-0 rounded-lg cursor-pointer overflow-hidden"
+              aria-label={`Go to ${p.label}`}
+              className="relative flex items-center gap-0 rounded-lg cursor-pointer overflow-hidden focus-visible:ring-2 focus-visible:ring-white/30 outline-none"
               animate={{
                 paddingTop: hovered ? 6 : 3,
                 paddingBottom: hovered ? 6 : 3,
@@ -121,6 +123,6 @@ export default function NavDots({
           );
         })}
       </div>
-    </motion.div>
+    </motion.nav>
   );
 }

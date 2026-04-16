@@ -13,7 +13,11 @@ const BARS = [
 
 const EqBars = memo(function EqBars({ animate }: Props) {
   return (
-    <div className="flex h-4 items-end gap-1">
+    <div
+      className="flex h-4 items-end gap-1"
+      role="img"
+      aria-label="Equalizer bars"
+    >
       {BARS.map((bar, i) => (
         <div
           key={i}

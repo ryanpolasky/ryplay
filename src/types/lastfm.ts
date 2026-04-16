@@ -128,3 +128,11 @@ export interface TopItem {
   imageUrl: string;
   url: string;
 }
+
+export const DEFAULT_PALETTE: PaletteColors = {
+  dominant: "#404040",
+  muted: "#262626",
+  vibrant: "#525252",
+  light: "#737373",
+  dark: "#171717",
+};

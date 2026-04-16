@@ -14,7 +14,8 @@ export function useTopItems(
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
     const params = new URLSearchParams({
@@ -24,28 +25,24 @@ export function useTopItems(
       limit: String(limit),
     });
 
-    fetch(`/api/top?${params}`)
+    fetch(`/api/top?${params}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         return res.json();
       })
       .then((data: TopItem[]) => {
-        if (!cancelled) {
-          setItems(data);
-          setError(null);
-        }
+        setItems(data);
+        setError(null);
       })
       .catch((err) => {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : "Failed to fetch");
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to fetch");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [username, type, period, limit]);
 
   return { items, loading, error };

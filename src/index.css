@@ -25,6 +25,33 @@
   }
 }
 
+@keyframes soundwave-bar {
+  0%,
+  100% {
+    height: var(--sw-base, 30%);
+  }
+  25% {
+    height: var(--sw-peak, 80%);
+  }
+  50% {
+    height: var(--sw-mid, 55%);
+  }
+  75% {
+    height: calc(var(--sw-peak, 80%) - 15%);
+  }
+}
+
+@keyframes cell-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 /* Global styles */
 html {
   scroll-behavior: smooth;

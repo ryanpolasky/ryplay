@@ -561,30 +561,26 @@ export const BACKGROUNDS: BackgroundDef[] = [
     }),
     component: ({ colors, isMobile }) => {
       injectStyles();
-      const stars = Array.from({ length: isMobile ? 30 : 60 }, (_, i) => ({
-        left: `${(i * 37 + 13) % 100}%`,
-        top: `${(i * 53 + 7) % 100}%`,
-        size: i % 5 === 0 ? 2 : 1,
-        opacity: 0.2 + (i % 4) * 0.15,
-      }));
       return (
         <div
           className="absolute inset-0 overflow-hidden"
           style={{ backgroundColor: "#050510" }}
         >
-          {stars.map((s, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full"
-              style={{
-                left: s.left,
-                top: s.top,
-                width: s.size,
-                height: s.size,
-                backgroundColor: `rgba(255,255,255,${s.opacity})`,
-              }}
-            />
-          ))}
+          {/* Stars as a single SVG layer instead of 60 divs */}
+          <svg
+            className="absolute inset-0 w-full h-full"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            {Array.from({ length: isMobile ? 30 : 60 }, (_, i) => (
+              <circle
+                key={i}
+                cx={`${(i * 37 + 13) % 100}%`}
+                cy={`${(i * 53 + 7) % 100}%`}
+                r={i % 5 === 0 ? 1 : 0.5}
+                fill={`rgba(255,255,255,${0.2 + (i % 4) * 0.15})`}
+              />
+            ))}
+          </svg>
           <motion.div
             className="absolute will-change-transform"
             animate={{

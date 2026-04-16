@@ -24,8 +24,22 @@ export function useNowPlaying(username: string) {
 
   useEffect(() => {
     fetchData();
-    const id = setInterval(fetchData, 10_000);
-    return () => clearInterval(id);
+    let id = setInterval(fetchData, 10_000);
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        clearInterval(id);
+      } else {
+        fetchData();
+        id = setInterval(fetchData, 10_000);
+      }
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [fetchData]);
 
   return { music, loading, error };

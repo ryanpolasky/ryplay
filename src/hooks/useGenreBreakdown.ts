@@ -26,16 +26,18 @@ export function useGenreBreakdown(username: string, period: Period) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
-    fetch(`/api/genres?user=${encodeURIComponent(username)}&period=${period}`)
+    fetch(`/api/genres?user=${encodeURIComponent(username)}&period=${period}`, {
+      signal: controller.signal,
+    })
       .then((res) => {
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         return res.json();
       })
       .then((data: { name: string; weight: number }[]) => {
-        if (cancelled) return;
         setGenres(
           data.map((g, i) => ({
             ...g,
@@ -45,16 +47,14 @@ export function useGenreBreakdown(username: string, period: Period) {
         setError(null);
       })
       .catch((err) => {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : "Failed to fetch");
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to fetch");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [username, period]);
 
   return { genres, loading, error };

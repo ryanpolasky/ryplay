@@ -1,6 +1,32 @@
 import { useRef, useState, useEffect, type ReactNode } from "react";
 import { motion } from "framer-motion";
 
+// Shared ResizeObserver — one instance for all ScrollingText components
+const callbacks = new WeakMap<Element, () => void>();
+let sharedObserver: ResizeObserver | null = null;
+
+function getObserver(): ResizeObserver {
+  if (!sharedObserver) {
+    sharedObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const cb = callbacks.get(entry.target);
+        if (cb) cb();
+      }
+    });
+  }
+  return sharedObserver;
+}
+
+function observeElement(el: Element, callback: () => void) {
+  callbacks.set(el, callback);
+  getObserver().observe(el);
+}
+
+function unobserveElement(el: Element) {
+  callbacks.delete(el);
+  getObserver().unobserve(el);
+}
+
 interface Props {
   children: ReactNode;
   className?: string;
@@ -24,11 +50,11 @@ export default function ScrollingText({ children, className = "" }: Props) {
 
     check();
     const timer = setTimeout(check, 600);
-    const ro = new ResizeObserver(check);
-    if (containerRef.current) ro.observe(containerRef.current);
+    const el = containerRef.current;
+    if (el) observeElement(el, check);
     return () => {
       clearTimeout(timer);
-      ro.disconnect();
+      if (el) unobserveElement(el);
     };
   }, [children]);
 

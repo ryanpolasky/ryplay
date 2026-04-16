@@ -1,7 +1,11 @@
 import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useStats } from "../hooks/useStats";
+import { useSettings } from "../context/SettingsContext";
 import ScrollingText from "./ScrollingText";
+import SectionHeader from "./SectionHeader";
+import Panel from "./Panel";
+import { FONTS } from "../types/settings";
 import type { PaletteColors } from "../types/lastfm";
 
 interface Props {
@@ -77,6 +81,7 @@ async function generateShareImage(
   stats: NonNullable<ReturnType<typeof useStats>["stats"]>,
   colors: PaletteColors,
   username: string,
+  fontFamily: string,
   artworkUrl?: string,
   currentTrack?: { title: string; artist: string } | null,
 ): Promise<Blob> {
@@ -87,7 +92,7 @@ async function generateShareImage(
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
   const font = (w: number, style = "") =>
-    `${style} ${w}px Inter, system-ui, sans-serif`.trim();
+    `${style} ${w}px ${fontFamily}, system-ui, sans-serif`.trim();
   const PAD = 60;
 
   // Background
@@ -333,7 +338,6 @@ async function generateShareImage(
   ctx.textAlign = "right";
   const brandFull = `ryplay.dev/${username}`;
   const brandFullW = ctx.measureText(brandFull).width;
-  ctx.measureText("ry").width;
   // Draw full string in white first
   ctx.fillStyle = "rgba(255,255,255,0.25)";
   ctx.fillText(brandFull, W - PAD, H - PAD);
@@ -353,6 +357,7 @@ export default function StatsPanel({
   currentTrack,
 }: Props) {
   const { stats, loading } = useStats(username);
+  const { settings, isMobile } = useSettings();
   const vibrant = colors.vibrant;
   const shareRef = useRef(false);
   const [shareLabel, setShareLabel] = useState("share stats");
@@ -361,10 +366,13 @@ export default function StatsPanel({
     if (!stats || shareRef.current) return;
     shareRef.current = true;
     try {
+      const activeFontFamily =
+        FONTS.find((f) => f.id === settings.fontId)?.family ?? "Inter";
       const blob = await generateShareImage(
         stats,
         colors,
         username,
+        activeFontFamily,
         artworkUrl,
         currentTrack,
       );
@@ -372,8 +380,6 @@ export default function StatsPanel({
         type: "image/png",
       });
 
-      // Mobile: native share sheet
-      const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
       if (
         isMobile &&
         navigator.share &&
@@ -383,18 +389,13 @@ export default function StatsPanel({
           files: [file],
           title: `${username} on ryplay`,
         });
-      }
-      // Desktop: copy to clipboard
-      else if (navigator.clipboard?.write) {
+      } else if (navigator.clipboard?.write) {
         await navigator.clipboard.write([
           new ClipboardItem({ "image/png": blob }),
         ]);
-        // Brief "copied" feedback could go here
         setShareLabel("copied!");
         setTimeout(() => setShareLabel("share stats"), 2000);
-      }
-      // Fallback: download
-      else {
+      } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -408,137 +409,128 @@ export default function StatsPanel({
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Section header */}
-      <div className="flex items-center gap-2 px-1">
-        <div
-          className="h-px flex-1"
-          style={{ background: `${colors.muted}40` }}
-        />
-        <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">
-          Profile
-        </span>
-        <div
-          className="h-px flex-1"
-          style={{ background: `${colors.muted}40` }}
-        />
-      </div>
+    <Panel id="stats">
+      <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full">
+        <div className="flex flex-col gap-4">
+          <SectionHeader label="Profile" colors={colors} />
 
-      {loading || !stats ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {Array.from({ length: 9 }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-20 rounded-xl bg-white/[0.04] animate-pulse ${
-                i === 0 ? "col-span-2 sm:col-span-1" : ""
-              }`}
-            />
-          ))}
+          {loading || !stats ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-20 rounded-xl bg-white/[0.04] animate-pulse ${
+                    i === 0 ? "col-span-2 sm:col-span-1" : ""
+                  }`}
+                />
+              ))}
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {/* Row 1 */}
+                <StatCard
+                  label="Total Scrobbles"
+                  value={(stats.totalScrobbles ?? 0).toLocaleString()}
+                  suffix={
+                    stats.avgDaily
+                      ? `${stats.avgDaily.toLocaleString()}/day`
+                      : undefined
+                  }
+                  delay={0}
+                  color={vibrant}
+                  colSpan={2}
+                  hero
+                />
+                <StatCard
+                  label="Member Since"
+                  value={formatDate(stats.memberSince)}
+                  delay={0.04}
+                />
+                {stats.topGenre ? (
+                  <StatCard
+                    label="Top Genre"
+                    value={stats.topGenre}
+                    delay={0.08}
+                    color={vibrant}
+                  />
+                ) : (
+                  <StatCard
+                    label="Albums"
+                    value={(stats.totalAlbums ?? 0).toLocaleString()}
+                    delay={0.08}
+                  />
+                )}
+
+                {/* Row 2 */}
+                <StatCard
+                  label="Artists"
+                  value={(stats.totalArtists ?? 0).toLocaleString()}
+                  delay={0.12}
+                />
+                <StatCard
+                  label="Tracks"
+                  value={(stats.totalTracks ?? 0).toLocaleString()}
+                  delay={0.16}
+                  color={vibrant}
+                />
+                {stats.topGenre ? (
+                  <StatCard
+                    label="Albums"
+                    value={(stats.totalAlbums ?? 0).toLocaleString()}
+                    delay={0.2}
+                  />
+                ) : (
+                  <StatCard
+                    label="Albums"
+                    value={(stats.totalAlbums ?? 0).toLocaleString()}
+                    delay={0.2}
+                  />
+                )}
+
+                {/* Row 3 */}
+                {stats.topArtist && (
+                  <StatCard
+                    label="#1 Artist"
+                    value={stats.topArtist.name}
+                    sub={`${(stats.topArtist.playcount ?? 0).toLocaleString()} plays`}
+                    delay={0.24}
+                    color={vibrant}
+                  />
+                )}
+                {stats.topTrack && (
+                  <StatCard
+                    label="#1 Track"
+                    value={stats.topTrack.name}
+                    sub={stats.topTrack.artist}
+                    delay={0.28}
+                  />
+                )}
+                {stats.topAlbum && (
+                  <StatCard
+                    label="#1 Album"
+                    value={stats.topAlbum.name}
+                    sub={stats.topAlbum.artist}
+                    delay={0.32}
+                    color={vibrant}
+                  />
+                )}
+              </div>
+
+              {/* Share button */}
+              <motion.button
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                onClick={handleShare}
+                className="self-center mt-2 px-5 py-2 rounded-xl bg-white/[0.04] ring-1 ring-white/[0.06] text-xs text-white/40 hover:text-white/60 hover:bg-white/8 transition-all cursor-pointer"
+              >
+                {shareLabel}
+              </motion.button>
+            </>
+          )}
         </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {/* Row 1 */}
-            <StatCard
-              label="Total Scrobbles"
-              value={(stats.totalScrobbles ?? 0).toLocaleString()}
-              suffix={
-                stats.avgDaily
-                  ? `${stats.avgDaily.toLocaleString()}/day`
-                  : undefined
-              }
-              delay={0}
-              color={vibrant}
-              colSpan={2}
-              hero
-            />
-            <StatCard
-              label="Member Since"
-              value={formatDate(stats.memberSince)}
-              delay={0.04}
-            />
-            {stats.topGenre ? (
-              <StatCard
-                label="Top Genre"
-                value={stats.topGenre}
-                delay={0.08}
-                color={vibrant}
-              />
-            ) : (
-              <StatCard
-                label="Albums"
-                value={(stats.totalAlbums ?? 0).toLocaleString()}
-                delay={0.08}
-              />
-            )}
-
-            {/* Row 2 */}
-            <StatCard
-              label="Artists"
-              value={(stats.totalArtists ?? 0).toLocaleString()}
-              delay={0.12}
-            />
-            <StatCard
-              label="Tracks"
-              value={(stats.totalTracks ?? 0).toLocaleString()}
-              delay={0.16}
-              color={vibrant}
-            />
-            {stats.topGenre ? (
-              <StatCard
-                label="Albums"
-                value={(stats.totalAlbums ?? 0).toLocaleString()}
-                delay={0.2}
-              />
-            ) : (
-              <StatCard
-                label="Albums"
-                value={(stats.totalAlbums ?? 0).toLocaleString()}
-                delay={0.2}
-              />
-            )}
-
-            {/* Row 3 */}
-            {stats.topArtist && (
-              <StatCard
-                label="#1 Artist"
-                value={stats.topArtist.name}
-                sub={`${(stats.topArtist.playcount ?? 0).toLocaleString()} plays`}
-                delay={0.24}
-                color={vibrant}
-              />
-            )}
-            {stats.topTrack && (
-              <StatCard
-                label="#1 Track"
-                value={stats.topTrack.name}
-                sub={stats.topTrack.artist}
-                delay={0.28}
-              />
-            )}
-            {stats.topAlbum && (
-              <StatCard
-                label="#1 Album"
-                value={stats.topAlbum.name}
-                sub={stats.topAlbum.artist}
-                delay={0.32}
-                color={vibrant}
-              />
-            )}
-          </div>
-
-          {/* Share button */}
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            onClick={handleShare}
-            className="self-center mt-2 px-5 py-2 rounded-xl bg-white/[0.04] ring-1 ring-white/[0.06] text-xs text-white/40 hover:text-white/60 hover:bg-white/[0.07] transition-all cursor-pointer"
-          >
-            {shareLabel}
-          </motion.button>
-        </>
-      )}
-    </div>
+      </div>
+    </Panel>
   );
 }

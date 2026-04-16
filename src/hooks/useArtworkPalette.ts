@@ -1,13 +1,8 @@
 import { useState, useEffect } from "react";
-import type { PaletteColors } from "../types/lastfm";
+import { DEFAULT_PALETTE, type PaletteColors } from "../types/lastfm";
 
-const DEFAULT_PALETTE: PaletteColors = {
-  dominant: "#404040",
-  muted: "#262626",
-  vibrant: "#525252",
-  light: "#737373",
-  dark: "#171717",
-};
+// Preload node-vibrant chunk so it's ready when artwork URL arrives
+const vibrantPromise = import("node-vibrant/browser");
 
 // --- Color math ---
 
@@ -311,7 +306,7 @@ function extractFromCanvas(img: HTMLImageElement): PaletteColors {
 // --- Vibrant extraction (preferred) with canvas fallback ---
 
 async function extractWithVibrant(proxyUrl: string): Promise<PaletteColors> {
-  const mod = await import("node-vibrant/browser");
+  const mod = await vibrantPromise;
   // @ts-expect-error it doesn't like this name, but it's prolly fine :)
   const Vibrant = mod.default ?? mod.Vibrant ?? mod;
   const p = await Vibrant.from(proxyUrl).quality(5).getPalette();

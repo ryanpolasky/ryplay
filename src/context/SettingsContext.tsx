@@ -35,6 +35,30 @@ function loadSettings(): Settings {
   }
 }
 
+// Track which font stylesheets have been loaded
+const loadedFonts = new Set<string>(["inter"]);
+
+const FONT_URLS: Record<string, string> = {
+  "jetbrains-mono":
+    "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap",
+  "space-grotesk":
+    "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap",
+  outfit:
+    "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap",
+  sora: "https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap",
+};
+
+function ensureFontLoaded(fontId: string) {
+  if (loadedFonts.has(fontId)) return;
+  const url = FONT_URLS[fontId];
+  if (!url) return;
+  loadedFonts.add(fontId);
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = url;
+  document.head.appendChild(link);
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [isMobile, setIsMobile] = useState(false);
@@ -44,9 +68,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("ryplay-settings", JSON.stringify(settings));
   }, [settings]);
 
-  // Apply font globally
+  // Apply font globally (lazy-load stylesheet if needed)
   useEffect(() => {
     const font = FONTS.find((f) => f.id === settings.fontId);
+    ensureFontLoaded(settings.fontId);
     if (font && font.id !== "inter") {
       document.body.style.fontFamily = `"${font.family}", system-ui, -apple-system, sans-serif`;
     } else {

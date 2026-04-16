@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Panel from "./Panel";
 import PeriodSelector from "./PeriodSelector";
+import SectionHeader from "./SectionHeader";
+import Spinner from "./Spinner";
+import { useSettings } from "../context/SettingsContext";
 import { useGenreBreakdown } from "../hooks/useGenreBreakdown";
 import type { Period, PaletteColors } from "../types/lastfm";
 
@@ -14,41 +17,18 @@ export default function GenreBreakdown({ username, colors }: Props) {
   const [period, setPeriod] = useState<Period>("3month");
   const { genres, loading } = useGenreBreakdown(username, period);
   const maxWeight = genres.length > 0 ? genres[0].weight : 1;
-
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 639px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  const { isMobile } = useSettings();
 
   return (
     <Panel id="genres">
-      {/* Section header */}
-      <div className="flex items-center gap-2 px-1 mb-4">
-        <div
-          className="h-px flex-1"
-          style={{ background: `${colors.muted}40` }}
-        />
-        <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">
-          Genres
-        </span>
-        <div
-          className="h-px flex-1"
-          style={{ background: `${colors.muted}40` }}
-        />
-      </div>
+      <SectionHeader label="Genres" colors={colors} />
 
       <div className="flex justify-center sm:justify-end mb-6">
         <PeriodSelector value={period} onChange={setPeriod} id="genres" />
       </div>
 
       {loading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-        </div>
+        <Spinner />
       ) : genres.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-white/30 text-sm">
           no genre data available

@@ -51,7 +51,7 @@ export default function TrackCard({
   }
 
   return (
-    <div className="group/card relative isolate overflow-hidden rounded-2xl md:rounded-[2.5rem] bg-white/5 p-[0.35rem] md:p-[0.5rem] ring-1 ring-white/10 transition-all duration-500 hover:bg-white/10 hover:ring-white/20">
+    <div className="group/card relative isolate overflow-hidden rounded-2xl md:rounded-[2.5rem] bg-white/5 p-[0.35rem] md:p-[0.5rem] ring-1 ring-white/10 transition-all duration-500 hover:bg-white/8 hover:ring-white/20">
       {/* Noise texture */}
       <div
         className="pointer-events-none absolute inset-0 rounded-2xl md:rounded-[2.5rem] opacity-[0.03] mix-blend-overlay"
@@ -141,13 +141,19 @@ export default function TrackCard({
               href={trackUrl}
               target="_blank"
               rel="noopener noreferrer"
-              whileHover={{
-                scale: 1.02,
-                backgroundColor: "rgb(228 228 231)",
-              }}
+              whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition-colors self-center md:self-start"
-              style={{ color: colors.dark }}
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white/80 ring-1 transition-colors self-center md:self-start hover:text-white"
+              style={{
+                backgroundColor: `${colors.vibrant}25`,
+                ["--tw-ring-color" as string]: `${colors.vibrant}40`,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = `${colors.vibrant}40`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = `${colors.vibrant}25`;
+              }}
             >
               Open Track
               <svg

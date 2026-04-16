@@ -3,6 +3,8 @@ import { motion } from "framer-motion";
 import Panel from "./Panel";
 import PeriodSelector from "./PeriodSelector";
 import ScrollingText from "./ScrollingText";
+import SectionHeader from "./SectionHeader";
+import Spinner from "./Spinner";
 import { useTopItems } from "../hooks/useTopItems";
 import type { Period, PaletteColors } from "../types/lastfm";
 
@@ -25,28 +27,14 @@ export default function TopList({ username, type, title, id, colors }: Props) {
   return (
     <Panel id={id}>
       {/* Section header */}
-      <div className="flex items-center gap-2 px-1 mb-4">
-        <div
-          className="h-px flex-1"
-          style={{ background: `${colors.muted}40` }}
-        />
-        <span className="text-[9px] font-bold uppercase tracking-widest text-white/30">
-          {title}
-        </span>
-        <div
-          className="h-px flex-1"
-          style={{ background: `${colors.muted}40` }}
-        />
-      </div>
+      <SectionHeader label={title} colors={colors} />
 
       <div className="flex justify-center sm:justify-end mb-6">
         <PeriodSelector value={period} onChange={setPeriod} id={id} />
       </div>
 
       {loading ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-        </div>
+        <Spinner />
       ) : items.length === 0 ? (
         <div className="flex-1 flex items-center justify-center text-white/30 text-sm">
           no data for this period

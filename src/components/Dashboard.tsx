@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "../context/UserContext";
 import { useSettings } from "../context/SettingsContext";
@@ -10,6 +10,7 @@ import NavDots from "./NavDots";
 import NowPlayingToast from "./NowPlayingToast";
 import SettingsCog from "./SettingsCog";
 import SettingsPanel from "./SettingsPanel";
+import ErrorBoundary from "./ErrorBoundary";
 import { setGradientFavicon } from "../lib/favicon";
 import NowPlaying from "./NowPlaying";
 import RecentlyPlayed from "./RecentlyPlayed";
@@ -17,16 +18,7 @@ import StatsPanel from "./StatsPanel";
 import TopList from "./TopList";
 import GenreBreakdown from "./GenreBreakdown";
 import ListeningClock from "./ListeningClock";
-import Panel from "./Panel";
-import type { PaletteColors } from "../types/lastfm";
-
-const DEFAULT_PALETTE: PaletteColors = {
-  dominant: "#404040",
-  muted: "#262626",
-  vibrant: "#525252",
-  light: "#737373",
-  dark: "#171717",
-};
+import { DEFAULT_PALETTE, type PaletteColors } from "../types/lastfm";
 
 const PANELS = [
   { id: "now-playing", label: "Now Playing" },
@@ -42,7 +34,11 @@ const PANELS = [
 export default function Dashboard() {
   const { username, setUsername } = useUser();
   const { settings, isMobile } = useSettings();
-  const [activePage, setActivePage] = useState(0);
+  const [activePage, setActivePage] = useState(() => {
+    const hash = window.location.hash.slice(1);
+    const idx = PANELS.findIndex((p) => p.id === hash);
+    return idx >= 0 ? idx : 0;
+  });
   const [colors, setColors] = useState<PaletteColors>(DEFAULT_PALETTE);
   const [chromeVisible, setChromeVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -54,9 +50,18 @@ export default function Dashboard() {
     artist: string;
     artworkUrl?: string;
   } | null>(null);
+  // Track which panels have been visited (for deferred rendering)
+  const [visitedPanels, setVisitedPanels] = useState<Set<number>>(
+    () => new Set([0]),
+  );
   const prevTitleRef = useRef<string | null>(null);
   const scrollRef = useRef<HTMLElement>(null);
   const idleTimer = useRef<number>(0);
+  const lastWakeTime = useRef(0);
+  const activePageRef = useRef(0);
+  const rafId = useRef(0);
+  const updatingHash = useRef(false);
+
   const wakeChrome = useCallback(() => {
     setChromeVisible(true);
     clearTimeout(idleTimer.current);
@@ -65,6 +70,14 @@ export default function Dashboard() {
       15_000,
     );
   }, []);
+
+  // Throttled mousemove handler (~150ms)
+  const throttledWake = useCallback(() => {
+    const now = Date.now();
+    if (now - lastWakeTime.current < 150) return;
+    lastWakeTime.current = now;
+    wakeChrome();
+  }, [wakeChrome]);
 
   const { music, loading: musicLoading } = useNowPlaying(username!);
   const { palette, isExtracted } = useArtworkPalette(music?.artworkUrl ?? null);
@@ -83,6 +96,7 @@ export default function Dashboard() {
   }, [music?.title]);
 
   // Show toast when track changes while not on now-playing page
+  // activePage is intentionally excluded — we only want to fire on track change, not on scroll
   useEffect(() => {
     const newTitle = music?.title ?? null;
     if (
@@ -101,6 +115,7 @@ export default function Dashboard() {
       return () => clearTimeout(timer);
     }
     prevTitleRef.current = newTitle;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [music?.title, music?.artist, music?.artworkUrl]);
 
   // Auto-hide chrome after 15s idle or on window blur
@@ -120,20 +135,20 @@ export default function Dashboard() {
     };
 
     wakeChrome();
-    window.addEventListener("mousemove", wakeChrome);
+    window.addEventListener("mousemove", throttledWake);
     window.addEventListener("mousedown", wakeChrome);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", wakeChrome);
     return () => {
       clearTimeout(idleTimer.current);
-      window.removeEventListener("mousemove", wakeChrome);
+      window.removeEventListener("mousemove", throttledWake);
       window.removeEventListener("mousedown", wakeChrome);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", wakeChrome);
     };
-  }, [wakeChrome]);
+  }, [wakeChrome, throttledWake]);
 
   // Auto-dismiss first-visit hint
   useEffect(() => {
@@ -153,26 +168,80 @@ export default function Dashboard() {
     };
   }, [showHint]);
 
-  const activePageRef = useRef(0);
-
-  const handleScroll = useCallback(() => {
-    if (!scrollRef.current) return;
-    const el = scrollRef.current;
-    const scrollMid = el.scrollTop + el.clientHeight / 2;
-    let closest = 0;
-    let closestDist = Infinity;
-    for (let i = 0; i < el.children.length; i++) {
-      const child = el.children[i] as HTMLElement;
-      const childMid = child.offsetTop + child.offsetHeight / 2;
-      const dist = Math.abs(scrollMid - childMid);
-      if (dist < closestDist) {
-        closestDist = dist;
-        closest = i;
+  // Mark panels as visited when they come into range
+  useEffect(() => {
+    setVisitedPanels((prev) => {
+      const next = new Set(prev);
+      // Pre-render activePage ± 1
+      for (
+        let i = Math.max(0, activePage - 1);
+        i <= Math.min(PANELS.length - 1, activePage + 1);
+        i++
+      ) {
+        next.add(i);
       }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [activePage]);
+
+  // Update URL hash when active page changes
+  useEffect(() => {
+    const id = PANELS[activePage]?.id;
+    if (id) {
+      updatingHash.current = true;
+      window.history.replaceState(null, "", `#${id}`);
+      // Allow hashchange listener to settle
+      requestAnimationFrame(() => {
+        updatingHash.current = false;
+      });
     }
-    const page = Math.min(PANELS.length - 1, closest);
-    activePageRef.current = page;
-    setActivePage(page);
+  }, [activePage]);
+
+  // Listen for hashchange (e.g., direct URL navigation)
+  useEffect(() => {
+    const onHashChange = () => {
+      if (updatingHash.current) return;
+      const hash = window.location.hash.slice(1);
+      const idx = PANELS.findIndex((p) => p.id === hash);
+      if (idx >= 0) scrollToPage(idx);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  // Scroll to initial hash on mount
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    const idx = PANELS.findIndex((p) => p.id === hash);
+    if (idx > 0) {
+      // Delay slightly to let panels render
+      requestAnimationFrame(() => scrollToPage(idx));
+    }
+  }, []);
+
+  // RAF-guarded scroll handler
+  const handleScroll = useCallback(() => {
+    if (rafId.current) return;
+    rafId.current = requestAnimationFrame(() => {
+      rafId.current = 0;
+      if (!scrollRef.current) return;
+      const el = scrollRef.current;
+      const scrollMid = el.scrollTop + el.clientHeight / 2;
+      let closest = 0;
+      let closestDist = Infinity;
+      for (let i = 0; i < el.children.length; i++) {
+        const child = el.children[i] as HTMLElement;
+        const childMid = child.offsetTop + child.offsetHeight / 2;
+        const dist = Math.abs(scrollMid - childMid);
+        if (dist < closestDist) {
+          closestDist = dist;
+          closest = i;
+        }
+      }
+      const page = Math.min(PANELS.length - 1, closest);
+      activePageRef.current = page;
+      setActivePage(page);
+    });
   }, []);
 
   // Arrow key navigation between panels
@@ -182,7 +251,6 @@ export default function Dashboard() {
       if (e.key === "ArrowDown" || e.key === "ArrowRight") {
         e.preventDefault();
         const next = Math.min(PANELS.length - 1, current + 1);
-        // eslint-disable-next-line react-hooks/immutability
         scrollToPage(next);
         wakeChrome();
       } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
@@ -199,6 +267,11 @@ export default function Dashboard() {
   const scrollToPage = (i: number) => {
     scrollRef.current?.children[i]?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // Determine which panels should render content
+  const shouldRender = useMemo(() => {
+    return PANELS.map((_, i) => visitedPanels.has(i));
+  }, [visitedPanels]);
 
   if (!username) return null;
 
@@ -261,7 +334,12 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ delay: 1, type: "spring", stiffness: 400, damping: 28 }}
+            transition={{
+              delay: 1,
+              type: "spring",
+              stiffness: 400,
+              damping: 28,
+            }}
             className="fixed top-14 right-4 sm:right-6 z-40 flex flex-col items-end gap-1.5 pointer-events-none"
           >
             <svg
@@ -308,30 +386,28 @@ export default function Dashboard() {
         onScroll={handleScroll}
         className="h-dvh overflow-y-auto snap-y snap-mandatory scrollbar-hide relative z-10"
       >
-        <Panel id="now-playing">
-          <div className="flex-1 flex items-center justify-center">
-            <div className="w-full max-w-2xl">
-              <NowPlaying
-                username={username}
-                music={music}
-                colors={colors}
-                loading={musicLoading}
-              />
-            </div>
-          </div>
-        </Panel>
+        <ErrorBoundary>
+          <NowPlaying
+            username={username}
+            music={music}
+            colors={colors}
+            loading={musicLoading}
+          />
+        </ErrorBoundary>
 
-        <Panel id="recent">
-          <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full">
+        <ErrorBoundary>
+          {shouldRender[1] ? (
             <RecentlyPlayed
               tracks={music?.recentTracks ?? []}
               colors={colors}
             />
-          </div>
-        </Panel>
+          ) : (
+            <section id="recent" className="min-h-dvh snap-start snap-always" />
+          )}
+        </ErrorBoundary>
 
-        <Panel id="stats">
-          <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full">
+        <ErrorBoundary>
+          {shouldRender[2] ? (
             <StatsPanel
               username={username}
               colors={colors}
@@ -342,33 +418,77 @@ export default function Dashboard() {
                   : null
               }
             />
-          </div>
-        </Panel>
+          ) : (
+            <section id="stats" className="min-h-dvh snap-start snap-always" />
+          )}
+        </ErrorBoundary>
 
-        <TopList
-          username={username}
-          type="artists"
-          title="Top Artists"
-          id="top-artists"
-          colors={colors}
-        />
-        <TopList
-          username={username}
-          type="tracks"
-          title="Top Tracks"
-          id="top-tracks"
-          colors={colors}
-        />
-        <TopList
-          username={username}
-          type="albums"
-          title="Top Albums"
-          id="top-albums"
-          colors={colors}
-        />
+        <ErrorBoundary>
+          {shouldRender[3] ? (
+            <TopList
+              username={username}
+              type="artists"
+              title="Top Artists"
+              id="top-artists"
+              colors={colors}
+            />
+          ) : (
+            <section
+              id="top-artists"
+              className="min-h-dvh snap-start snap-always"
+            />
+          )}
+        </ErrorBoundary>
 
-        <GenreBreakdown username={username} colors={colors} />
-        <ListeningClock username={username} colors={colors} />
+        <ErrorBoundary>
+          {shouldRender[4] ? (
+            <TopList
+              username={username}
+              type="tracks"
+              title="Top Tracks"
+              id="top-tracks"
+              colors={colors}
+            />
+          ) : (
+            <section
+              id="top-tracks"
+              className="min-h-dvh snap-start snap-always"
+            />
+          )}
+        </ErrorBoundary>
+
+        <ErrorBoundary>
+          {shouldRender[5] ? (
+            <TopList
+              username={username}
+              type="albums"
+              title="Top Albums"
+              id="top-albums"
+              colors={colors}
+            />
+          ) : (
+            <section
+              id="top-albums"
+              className="min-h-dvh snap-start snap-always"
+            />
+          )}
+        </ErrorBoundary>
+
+        <ErrorBoundary>
+          {shouldRender[6] ? (
+            <GenreBreakdown username={username} colors={colors} />
+          ) : (
+            <section id="genres" className="min-h-dvh snap-start snap-always" />
+          )}
+        </ErrorBoundary>
+
+        <ErrorBoundary>
+          {shouldRender[7] ? (
+            <ListeningClock username={username} colors={colors} />
+          ) : (
+            <section id="clock" className="min-h-dvh snap-start snap-always" />
+          )}
+        </ErrorBoundary>
       </main>
     </div>
   );

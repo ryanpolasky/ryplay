@@ -7,31 +7,30 @@ export function useStats(username: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
-    fetch(`/api/music/stats?user=${encodeURIComponent(username)}`)
+    fetch(`/api/music/stats?user=${encodeURIComponent(username)}`, {
+      signal: controller.signal,
+    })
       .then((res) => {
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         return res.json();
       })
       .then((data: StatsData) => {
-        if (!cancelled) {
-          setStats(data);
-          setError(null);
-        }
+        setStats(data);
+        setError(null);
       })
       .catch((err) => {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : "Failed to fetch");
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to fetch");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [username]);
 
   return { stats, loading, error };
