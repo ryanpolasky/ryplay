@@ -1,27 +1,32 @@
 import { memo } from "react";
-import { motion } from "framer-motion";
 
 interface Props {
   animate: boolean;
 }
 
+const BARS = [
+  { peak: "40%", duration: "0.6s", delay: "0s" },
+  { peak: "80%", duration: "0.7s", delay: "0.1s" },
+  { peak: "50%", duration: "0.8s", delay: "0.2s" },
+  { peak: "90%", duration: "0.9s", delay: "0.3s" },
+];
+
 const EqBars = memo(function EqBars({ animate }: Props) {
   return (
     <div className="flex h-4 items-end gap-1">
-      {[0.4, 0.8, 0.5, 0.9].map((scale, i) => (
-        <motion.div
+      {BARS.map((bar, i) => (
+        <div
           key={i}
           className="w-1 rounded-full bg-current opacity-80"
-          initial={{ height: 4 }}
-          animate={{
-            height: animate ? ["20%", `${scale * 100}%`, "20%"] : 4,
-          }}
-          transition={{
-            duration: animate ? 0.6 + i * 0.1 : 0.5,
-            repeat: animate ? Infinity : 0,
-            ease: "easeInOut",
-            delay: i * 0.1,
-          }}
+          style={
+            animate
+              ? {
+                  height: "20%",
+                  animation: `eq-bar ${bar.duration} ease-in-out ${bar.delay} infinite`,
+                  ["--eq-peak" as string]: bar.peak,
+                }
+              : { height: "4px", transition: "height 0.5s ease" }
+          }
         />
       ))}
     </div>

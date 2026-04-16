@@ -26,6 +26,8 @@ function StatCard({
   sub,
   color,
   delay,
+  colSpan,
+  hero,
 }: {
   label: string;
   value: string;
@@ -33,18 +35,22 @@ function StatCard({
   sub?: string;
   color?: string;
   delay: number;
+  colSpan?: number;
+  hero?: boolean;
 }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
-      className="rounded-xl bg-white/[0.04] ring-1 ring-white/[0.06] p-4 flex flex-col gap-1 min-w-0"
+      className={`rounded-xl ${hero ? "bg-white/[0.06]" : "bg-white/[0.04]"} ring-1 ring-white/[0.06] p-4 flex flex-col gap-1 min-w-0 ${
+        colSpan === 2 ? "col-span-2 sm:col-span-1" : ""
+      }`}
     >
       <span className="text-[9px] uppercase tracking-widest text-white/30">
         {label}
       </span>
-      <ScrollingText className="text-xl font-bold tabular-nums">
+      <ScrollingText className={`${hero ? "text-2xl sm:text-xl" : "text-xl"} font-bold tabular-nums`}>
         <span style={{ color: color ?? "rgba(255,255,255,0.85)" }}>
           {value}
         </span>
@@ -54,7 +60,7 @@ function StatCard({
           </span>
         )}
       </ScrollingText>
-      {sub && <span className="text-[11px] text-white/30 truncate">{sub}</span>}
+      {sub && <ScrollingText className="text-[11px] text-white/30">{sub}</ScrollingText>}
     </motion.div>
   );
 }
@@ -417,7 +423,9 @@ export default function StatsPanel({
           {Array.from({ length: 9 }).map((_, i) => (
             <div
               key={i}
-              className="h-20 rounded-xl bg-white/[0.04] animate-pulse"
+              className={`h-20 rounded-xl bg-white/[0.04] animate-pulse ${
+                i === 0 ? "col-span-2 sm:col-span-1" : ""
+              }`}
             />
           ))}
         </div>
@@ -435,6 +443,8 @@ export default function StatsPanel({
               }
               delay={0}
               color={vibrant}
+              colSpan={2}
+              hero
             />
             <StatCard
               label="Member Since"

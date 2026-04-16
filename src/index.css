@@ -16,11 +16,12 @@
 }
 
 @keyframes eq-bar {
-  0% {
+  0%,
+  100% {
     height: 20%;
   }
-  100% {
-    height: 100%;
+  50% {
+    height: var(--eq-peak, 80%);
   }
 }
 
@@ -48,6 +49,27 @@ body {
     --color-vibrant 1.5s ease,
     --color-light 1.5s ease,
     --color-dark 1.5s ease;
+}
+
+/* Mobile-friendly ambient vignette */
+.vignette-overlay {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(6, 6, 9, 0.25) 0%,
+    rgba(6, 6, 9, 0.75) 70%,
+    rgba(6, 6, 9, 0.9) 100%
+  );
+}
+
+@media (min-width: 768px) {
+  .vignette-overlay {
+    background: radial-gradient(
+      ellipse at center,
+      rgba(6, 6, 9, 0.4) 0%,
+      rgba(6, 6, 9, 0.85) 70%,
+      rgba(6, 6, 9, 0.95) 100%
+    );
+  }
 }
 
 /* Hide scrollbar on scroll-snap containers */

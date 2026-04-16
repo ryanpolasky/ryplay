@@ -162,7 +162,7 @@ export default function Dashboard() {
   if (!username) return null;
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-[#060609] text-white">
+    <div className="h-dvh w-screen overflow-hidden bg-[#060609] text-white">
       <AmbientBackground colors={colors} artworkUrl={music?.artworkUrl} />
 
       {/* Now playing toast */}
@@ -214,7 +214,7 @@ export default function Dashboard() {
       <main
         ref={scrollRef}
         onScroll={handleScroll}
-        className="h-screen overflow-y-auto snap-y snap-mandatory scrollbar-hide relative z-10"
+        className="h-dvh overflow-y-auto snap-y snap-mandatory scrollbar-hide relative z-10"
       >
         <Panel id="now-playing">
           <div className="flex-1 flex items-center justify-center">

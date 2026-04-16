@@ -2,6 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Panel from "./Panel";
 import PeriodSelector from "./PeriodSelector";
+import ScrollingText from "./ScrollingText";
 import { useTopItems } from "../hooks/useTopItems";
 import type { Period, PaletteColors } from "../types/lastfm";
 
@@ -88,14 +89,14 @@ export default function TopList({ username, type, title, id, colors }: Props) {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 mb-0.5">
-                    <span className="text-sm font-medium text-white/80 truncate">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <ScrollingText className="text-sm font-medium text-white/80 min-w-0 flex-1">
                       {item.name}
-                    </span>
+                    </ScrollingText>
                     {item.subtitle && (
-                      <span className="text-xs text-white/30 truncate hidden sm:block">
+                      <ScrollingText className="text-xs text-white/30 hidden sm:block shrink-0 max-w-[40%]">
                         {item.subtitle}
-                      </span>
+                      </ScrollingText>
                     )}
                   </div>
                   <div className="flex items-center gap-2">

@@ -459,6 +459,14 @@ async def get_genres(
     request: Request = None,
 ):
     """Genre breakdown via iTunes artist genre lookups, weighted by playcount."""
+    # Scale artist sample by period — short periods have limited data,
+    # longer periods need more artists to reveal genre diversity
+    PERIOD_LIMITS = {
+        "7day": 20, "1month": 50, "3month": 80,
+        "6month": 120, "12month": 150, "overall": 200,
+    }
+    artist_limit = PERIOD_LIMITS.get(period, 50)
+
     cache_key = f"{user}:{period}"
     cached = genre_cache.get(cache_key)
     if cached and time.time() - cached[1] < GENRE_CACHE_TTL:
@@ -469,7 +477,7 @@ async def get_genres(
     # Fetch top 20 artists for this period
     resp = await client.get(LASTFM_API_URL, params={
         "method": "user.gettopartists", "user": user, "api_key": API_KEY,
-        "format": "json", "period": period, "limit": "20",
+        "format": "json", "period": period, "limit": str(artist_limit),
     })
     data = resp.json()
     artists = data.get("topartists", {}).get("artist", [])
@@ -488,7 +496,7 @@ async def get_genres(
                 if part:
                     genre_weights[part] = genre_weights.get(part, 0) + plays
 
-    await asyncio.gather(*(resolve_genre(a) for a in artists[:20]), return_exceptions=True)
+    await asyncio.gather(*(resolve_genre(a) for a in artists[:artist_limit]), return_exceptions=True)
 
     if not genre_weights:
         genre_cache[cache_key] = ([], time.time())
@@ -522,7 +530,12 @@ async def get_listening_clock(user: str = Query(..., min_length=1), request: Req
     client = request.app.state.http_client
     grid = [[0] * 24 for _ in range(7)]  # [day][hour], day 0=Mon
 
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(tz=timezone.utc).astimezone()
+    cutoff = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+
     # Fetch up to 10 pages (2000 tracks) for heavy listeners
+    done = False
     for page in range(1, 11):
         resp = await client.get(LASTFM_API_URL, params={
             "method": "user.getrecenttracks",
@@ -543,11 +556,16 @@ async def get_listening_clock(user: str = Query(..., min_length=1), request: Req
             date_info = track.get("date")
             if not date_info or not date_info.get("uts"):
                 continue
-            from datetime import datetime, timezone
             dt = datetime.fromtimestamp(int(date_info["uts"]), tz=timezone.utc).astimezone()
+            if dt < cutoff:
+                done = True
+                break
             day = (dt.weekday())  # 0=Mon
             hour = dt.hour
             grid[day][hour] += 1
+
+        if done:
+            break
 
         # If last page had fewer than 200, no more pages
         attr = data.get("recenttracks", {}).get("@attr", {})

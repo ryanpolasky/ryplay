@@ -22,12 +22,12 @@ export default function PeriodSelector({
   id = "default",
 }: Props) {
   return (
-    <div className="flex gap-0.5 p-1 rounded-lg bg-white/5 ring-1 ring-white/10">
+    <div className="flex gap-0.5 p-1 rounded-lg bg-white/5 ring-1 ring-white/10 overflow-x-auto scrollbar-hide">
       {PERIODS.map((p) => (
         <button
           key={p}
           onClick={() => onChange(p)}
-          className="relative px-2.5 py-1 text-[11px] rounded-md transition-colors cursor-pointer"
+          className="relative px-2.5 py-1 text-[11px] rounded-md transition-colors cursor-pointer shrink-0"
         >
           {value === p && (
             <motion.div

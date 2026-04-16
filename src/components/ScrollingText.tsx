@@ -14,29 +14,34 @@ export default function ScrollingText({ children, className = "" }: Props) {
 
   useEffect(() => {
     const check = () => {
-      const container = containerRef.current;
-      const text = textRef.current;
-      if (!container || !text) return;
-      const overflow = text.scrollWidth > container.clientWidth;
-      setIsOverflowing(overflow);
-      if (overflow) setContentWidth(text.scrollWidth);
+      if (containerRef.current && textRef.current) {
+        const container = containerRef.current.offsetWidth;
+        const text = textRef.current.offsetWidth;
+        setIsOverflowing(text > container);
+        setContentWidth(text);
+      }
     };
 
     check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    const timer = setTimeout(check, 600);
+    const ro = new ResizeObserver(check);
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => {
+      clearTimeout(timer);
+      ro.disconnect();
+    };
   }, [children]);
 
   return (
     <div
       ref={containerRef}
-      className={`relative overflow-hidden whitespace-nowrap ${className}`}
+      className={`overflow-hidden whitespace-nowrap min-w-0 ${className}`}
     >
       {isOverflowing ? (
         <div className="flex">
           <motion.div
             initial={{ x: 0 }}
-            animate={{ x: -(contentWidth + 32) }}
+            animate={{ x: -contentWidth - 32 }}
             transition={{
               repeat: Infinity,
               ease: "linear",

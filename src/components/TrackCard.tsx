@@ -123,12 +123,16 @@ export default function TrackCard({
 
           {/* Artist */}
           {artist && (
-            <p className="text-base text-white/60 mb-0.5 truncate">{artist}</p>
+            <ScrollingText className="text-base text-white/60 mb-0.5">
+              {artist}
+            </ScrollingText>
           )}
 
           {/* Album */}
           {album && (
-            <p className="text-sm text-white/30 mb-4 truncate">{album}</p>
+            <ScrollingText className="text-sm text-white/30 mb-4">
+              {album}
+            </ScrollingText>
           )}
 
           {/* Open Track button */}

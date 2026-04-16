@@ -58,17 +58,17 @@ export default function Landing() {
       {/* Ambient blobs — follow active palette */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
-          className="absolute -top-1/2 -left-1/4 w-[600px] h-[600px] rounded-full blur-[120px] animate-[drift_20s_ease-in-out_infinite]"
+          className="absolute -top-[15%] -left-[10%] w-[80vw] h-[80vw] md:-top-1/2 md:-left-1/4 md:w-[600px] md:h-[600px] rounded-full blur-[120px] animate-[drift_20s_ease-in-out_infinite]"
           animate={{ backgroundColor: hexToRgba(palette.from, 0.15) }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute -bottom-1/2 -right-1/4 w-[500px] h-[500px] rounded-full blur-[120px] animate-[drift_25s_ease-in-out_infinite_reverse]"
+          className="absolute -bottom-[15%] -right-[10%] w-[70vw] h-[70vw] md:-bottom-1/2 md:-right-1/4 md:w-[500px] md:h-[500px] rounded-full blur-[120px] animate-[drift_25s_ease-in-out_infinite_reverse]"
           animate={{ backgroundColor: hexToRgba(palette.to, 0.12) }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute top-1/4 right-1/4 w-[300px] h-[300px] rounded-full blur-[100px] animate-[drift_15s_ease-in-out_infinite]"
+          className="absolute top-[20%] right-[5%] w-[50vw] h-[50vw] md:top-1/4 md:right-1/4 md:w-[300px] md:h-[300px] rounded-full blur-[100px] animate-[drift_15s_ease-in-out_infinite]"
           animate={{ backgroundColor: hexToRgba(palette.from, 0.08) }}
           transition={{ duration: 0.8, ease: "easeInOut" }}
         />
@@ -99,7 +99,7 @@ export default function Landing() {
             onChange={(e) => setInput(e.target.value)}
             placeholder="last.fm username"
             autoFocus
-            className="w-72 px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-center text-lg outline-none focus:bg-white/[0.07] transition-all"
+            className="w-full max-w-xs px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-center text-lg outline-none focus:bg-white/[0.07] transition-all"
             style={{ borderColor: `${palette.from}30` }}
           />
 
@@ -116,7 +116,7 @@ export default function Landing() {
           <motion.button
             type="submit"
             disabled={checking || !input.trim()}
-            className="px-8 py-3 rounded-xl text-white font-medium transition-all cursor-pointer disabled:opacity-40"
+            className="w-full max-w-xs px-8 py-3 rounded-xl text-white font-medium transition-all cursor-pointer disabled:opacity-40"
             animate={{
               background: checking
                 ? "rgba(255,255,255,0.1)"
@@ -136,7 +136,7 @@ export default function Landing() {
           what's last.fm?
         </button>
 
-        <div className="mt-2 flex items-center justify-center gap-3 text-xs text-white/15">
+        <div className="mt-2 flex items-center justify-center gap-3 flex-wrap text-xs text-white/15">
           <span>powered by last.fm</span>
           <span className="text-white/10">|</span>
           <span>

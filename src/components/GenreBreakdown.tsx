@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Panel from "./Panel";
 import PeriodSelector from "./PeriodSelector";
@@ -14,6 +14,15 @@ export default function GenreBreakdown({ username, colors }: Props) {
   const [period, setPeriod] = useState<Period>("3month");
   const { genres, loading } = useGenreBreakdown(username, period);
   const maxWeight = genres.length > 0 ? genres[0].weight : 1;
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   return (
     <Panel id="genres">
@@ -44,7 +53,61 @@ export default function GenreBreakdown({ username, colors }: Props) {
         <div className="flex-1 flex items-center justify-center text-white/30 text-sm">
           no genre data available
         </div>
+      ) : isMobile ? (
+        /* ── Mobile: vertical bar chart + legend below ── */
+        <div className="flex-1 flex flex-col justify-center items-center gap-5 w-full">
+          {/* Bars */}
+          <div className="flex items-end justify-center gap-2 w-full px-2" style={{ height: 180 }}>
+            {genres.map((genre, i) => {
+              const pct = (genre.weight / maxWeight) * 100;
+              return (
+                <motion.div
+                  key={genre.name}
+                  className="flex-1 max-w-[36px] rounded-t-md relative group"
+                  initial={{ height: 0 }}
+                  animate={{ height: `${pct}%` }}
+                  transition={{
+                    duration: 0.6,
+                    delay: i * 0.05,
+                    ease: "easeOut",
+                  }}
+                  style={{
+                    background: `linear-gradient(to top, ${genre.color}cc, ${genre.color}88)`,
+                    boxShadow: `0 0 12px ${genre.color}20`,
+                    minHeight: 4,
+                  }}
+                  title={`${genre.name}: ${Math.round(genre.weight * 100)}%`}
+                />
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 px-2">
+            {genres.map((genre, i) => (
+              <motion.div
+                key={genre.name}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3, delay: i * 0.05 }}
+                className="flex items-center gap-1.5"
+              >
+                <div
+                  className="w-2.5 h-2.5 rounded-sm shrink-0"
+                  style={{ backgroundColor: genre.color }}
+                />
+                <span className="text-xs text-white/50 capitalize">
+                  {genre.name}
+                </span>
+                <span className="text-[10px] text-white/25 tabular-nums">
+                  {Math.round(genre.weight * 100)}%
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       ) : (
+        /* ── Desktop: horizontal bar chart ── */
         <div className="flex-1 flex flex-col justify-center max-w-xl mx-auto w-full gap-3">
           {genres.map((genre, i) => {
             const pct = (genre.weight / maxWeight) * 100;

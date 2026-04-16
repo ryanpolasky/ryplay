@@ -30,37 +30,31 @@ export default function AmbientBackground({ colors, artworkUrl }: Props) {
       )}
 
       {/* Dark vignette overlay to keep text readable */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse at center, rgba(6,6,9,0.4) 0%, rgba(6,6,9,0.85) 70%, rgba(6,6,9,0.95) 100%)",
-        }}
-      />
+      <div className="absolute inset-0 vignette-overlay" />
 
       {/* Dominant blob — top-left */}
       <motion.div
-        className="absolute -top-[20%] -left-[15%] w-[65vw] h-[65vw] rounded-full blur-[100px]"
+        className="absolute -top-[5%] -left-[5%] md:-top-[20%] md:-left-[15%] w-[80vw] h-[80vw] md:w-[65vw] md:h-[65vw] rounded-full blur-[100px]"
         animate={{
           backgroundColor: colors.dominant,
-          opacity: proxyUrl ? 0.25 : 0.12,
+          opacity: proxyUrl ? 0.3 : 0.15,
         }}
         transition={{ duration: 1.5, ease: "easeInOut" }}
       />
 
       {/* Vibrant blob — bottom-right */}
       <motion.div
-        className="absolute -bottom-[15%] -right-[10%] w-[55vw] h-[55vw] rounded-full blur-[100px]"
+        className="absolute -bottom-[5%] -right-[5%] md:-bottom-[15%] md:-right-[10%] w-[70vw] h-[70vw] md:w-[55vw] md:h-[55vw] rounded-full blur-[100px]"
         animate={{
           backgroundColor: colors.vibrant,
-          opacity: proxyUrl ? 0.2 : 0.08,
+          opacity: proxyUrl ? 0.25 : 0.1,
         }}
         transition={{ duration: 1.5, ease: "easeInOut" }}
       />
 
       {/* Muted blob — center */}
       <motion.div
-        className="absolute top-[20%] left-[30%] w-[40vw] h-[40vw] rounded-full blur-[120px]"
+        className="absolute top-[30%] left-[10%] md:top-[20%] md:left-[30%] w-[55vw] h-[55vw] md:w-[40vw] md:h-[40vw] rounded-full blur-[120px]"
         animate={{
           backgroundColor: colors.muted,
           opacity: proxyUrl ? 0.15 : 0.06,

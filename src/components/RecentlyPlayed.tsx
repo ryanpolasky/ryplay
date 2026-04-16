@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import ScrollingText from "./ScrollingText";
 import type { ProcessedTrack, PaletteColors } from "../types/lastfm";
 
 interface Props {
@@ -208,10 +209,12 @@ export default function RecentlyPlayed({ tracks, colors }: Props) {
 
               {/* Text */}
               <div className="min-w-0 flex-1 z-10">
-                <p className="truncate text-sm font-medium text-white/80">
+                <ScrollingText className="text-sm font-medium text-white/80">
                   {track.title}
-                </p>
-                <p className="truncate text-xs text-white/40">{track.artist}</p>
+                </ScrollingText>
+                <ScrollingText className="text-xs text-white/40">
+                  {track.artist}
+                </ScrollingText>
               </div>
 
               {/* Streak badge */}

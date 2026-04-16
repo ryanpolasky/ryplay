@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Panel from "./Panel";
 import { useListeningClock } from "../hooks/useListeningClock";
@@ -28,9 +28,18 @@ interface Props {
 export default function ListeningClock({ username, colors }: Props) {
   const { clockData, loading } = useListeningClock(username);
 
-  // Reorder rows so today is at the bottom
+  // Reorder rows so today is at the bottom (desktop) / rightmost (mobile)
   const todayIdx = (new Date().getDay() + 6) % 7; // 0=Mon
   const currentHour = new Date().getHours();
+
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const orderedRows = useMemo(() => {
     const rows: { dayIdx: number; name: string; date: string }[] = [];
@@ -69,7 +78,64 @@ export default function ListeningClock({ username, colors }: Props) {
         <div className="flex-1 flex items-center justify-center">
           <div className="w-8 h-8 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
         </div>
+      ) : isMobile ? (
+        /* ── Mobile: transposed grid (hours on Y, days on X) ── */
+        <div className="flex-1 flex items-center justify-center">
+          <div
+            className="inline-grid gap-[3px]"
+            style={{ gridTemplateColumns: `auto repeat(7, 1fr)` }}
+          >
+            {/* Header row: empty cell + 7 day abbreviations */}
+            <div />
+            {orderedRows.map((row, i) => (
+              <div
+                key={row.name}
+                className={`text-[10px] text-center pb-1 min-w-[20px] ${
+                  i === 6 ? "text-white/60 font-medium" : "text-white/20"
+                }`}
+              >
+                {row.name}
+              </div>
+            ))}
+
+            {/* 24 hour rows */}
+            {HOURS.map((hour) => (
+              <Fragment key={hour}>
+                <div className="text-[10px] text-white/20 text-right pr-1.5 flex items-center justify-end">
+                  {hour % 3 === 0 ? hourLabel(hour) : ""}
+                </div>
+                {orderedRows.map((row, rowI) => {
+                  const count = clockData[row.dayIdx][hour];
+                  const intensity = count / max;
+                  const isToday = rowI === 6;
+                  const isNow = isToday && hour === currentHour;
+                  return (
+                    <motion.div
+                      key={`${row.name}-${hour}`}
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: (hour * 7 + rowI) * 0.002 }}
+                      className="w-5 h-5 rounded-[3px]"
+                      style={{
+                        backgroundColor:
+                          count === 0
+                            ? "rgba(255,255,255,0.03)"
+                            : `color-mix(in srgb, ${colors.vibrant} ${Math.max(20, Math.round(intensity * 100))}%, transparent)`,
+                        outline: isNow
+                          ? `1.5px solid ${colors.vibrant}`
+                          : undefined,
+                        outlineOffset: isNow ? "1px" : undefined,
+                      }}
+                      title={`${row.name} ${row.date} ${hourLabel(hour)}: ${count} scrobbles${isNow ? " (now)" : ""}`}
+                    />
+                  );
+                })}
+              </Fragment>
+            ))}
+          </div>
+        </div>
       ) : (
+        /* ── Desktop: original grid (days on Y, hours on X) ── */
         <div className="flex-1 flex items-center justify-center">
           <div className="overflow-x-auto">
             <div
