@@ -1,4 +1,5 @@
 import { UserProvider, useUser } from "./context/UserContext";
+import { SettingsProvider } from "./context/SettingsContext";
 import Landing from "./components/Landing";
 import Dashboard from "./components/Dashboard";
 
@@ -10,7 +11,9 @@ function AppContent() {
 export default function App() {
   return (
     <UserProvider>
-      <AppContent />
+      <SettingsProvider>
+        <AppContent />
+      </SettingsProvider>
     </UserProvider>
   );
 }

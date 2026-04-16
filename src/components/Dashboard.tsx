@@ -1,12 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "../context/UserContext";
+import { useSettings } from "../context/SettingsContext";
 import { useNowPlaying } from "../hooks/useNowPlaying";
 import { useArtworkPalette } from "../hooks/useArtworkPalette";
-import AmbientBackground from "./AmbientBackground";
+import { getBackground } from "../lib/backgrounds";
 import Logo from "./Logo";
 import NavDots from "./NavDots";
 import NowPlayingToast from "./NowPlayingToast";
+import SettingsCog from "./SettingsCog";
+import SettingsPanel from "./SettingsPanel";
 import { setGradientFavicon } from "../lib/favicon";
 import NowPlaying from "./NowPlaying";
 import RecentlyPlayed from "./RecentlyPlayed";
@@ -38,9 +41,11 @@ const PANELS = [
 
 export default function Dashboard() {
   const { username, setUsername } = useUser();
+  const { settings, isMobile } = useSettings();
   const [activePage, setActivePage] = useState(0);
   const [colors, setColors] = useState<PaletteColors>(DEFAULT_PALETTE);
   const [chromeVisible, setChromeVisible] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [toast, setToast] = useState<{
     title: string;
     artist: string;
@@ -127,33 +132,47 @@ export default function Dashboard() {
     };
   }, [wakeChrome]);
 
+  const activePageRef = useRef(0);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current) return;
+    const el = scrollRef.current;
+    const scrollMid = el.scrollTop + el.clientHeight / 2;
+    let closest = 0;
+    let closestDist = Infinity;
+    for (let i = 0; i < el.children.length; i++) {
+      const child = el.children[i] as HTMLElement;
+      const childMid = child.offsetTop + child.offsetHeight / 2;
+      const dist = Math.abs(scrollMid - childMid);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closest = i;
+      }
+    }
+    const page = Math.min(PANELS.length - 1, closest);
+    activePageRef.current = page;
+    setActivePage(page);
+  }, []);
+
   // Arrow key navigation between panels
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const current = activePageRef.current;
       if (e.key === "ArrowDown" || e.key === "ArrowRight") {
         e.preventDefault();
-        const next = Math.min(PANELS.length - 1, activePage + 1);
+        const next = Math.min(PANELS.length - 1, current + 1);
         scrollToPage(next);
         wakeChrome();
       } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
         e.preventDefault();
-        const prev = Math.max(0, activePage - 1);
+        const prev = Math.max(0, current - 1);
         scrollToPage(prev);
         wakeChrome();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activePage]);
-
-  const handleScroll = useCallback(() => {
-    if (!scrollRef.current) return;
-    const el = scrollRef.current;
-    const pageH = el.clientHeight;
-    if (pageH === 0) return;
-    const page = Math.min(PANELS.length - 1, Math.round(el.scrollTop / pageH));
-    setActivePage(page);
-  }, []);
+  }, [wakeChrome]);
 
   const scrollToPage = (i: number) => {
     scrollRef.current?.children[i]?.scrollIntoView({ behavior: "smooth" });
@@ -161,9 +180,21 @@ export default function Dashboard() {
 
   if (!username) return null;
 
+  const activeBg = getBackground(settings.backgroundId);
+  const BgComponent = activeBg?.component;
+
   return (
     <div className="h-dvh w-screen overflow-hidden bg-[#060609] text-white">
-      <AmbientBackground colors={colors} artworkUrl={music?.artworkUrl} />
+      {/* Dynamic background */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        {BgComponent && (
+          <BgComponent
+            colors={colors}
+            isMobile={isMobile}
+            artworkUrl={music?.artworkUrl}
+          />
+        )}
+      </div>
 
       {/* Now playing toast */}
       <AnimatePresence>
@@ -208,6 +239,18 @@ export default function Dashboard() {
         colors={colors}
         onNavigate={scrollToPage}
         visible={chromeVisible}
+      />
+
+      {/* Settings */}
+      <SettingsCog
+        onClick={() => setSettingsOpen(true)}
+        visible={chromeVisible}
+        colors={colors}
+      />
+      <SettingsPanel
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        colors={colors}
       />
 
       {/* Scroll-snap container */}

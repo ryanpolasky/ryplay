@@ -99,6 +99,41 @@ async def _search_itunes_entity(client: httpx.AsyncClient, query: str, entity: s
     return None
 
 
+async def _search_deezer_artist(client: httpx.AsyncClient, name: str) -> str | None:
+    """Search Deezer for an actual artist photo."""
+    try:
+        resp = await client.get(
+            "https://api.deezer.com/search/artist",
+            params={"q": name, "limit": 1},
+            timeout=5.0,
+        )
+        data = resp.json()
+        results = data.get("data", [])
+        if results:
+            return results[0].get("picture_xl") or results[0].get("picture_big") or results[0].get("picture_medium")
+    except Exception:
+        pass
+    return None
+
+
+async def _search_deezer_track(client: httpx.AsyncClient, query: str) -> str | None:
+    """Search Deezer for track/album artwork."""
+    try:
+        resp = await client.get(
+            "https://api.deezer.com/search/track",
+            params={"q": query, "limit": 1},
+            timeout=5.0,
+        )
+        data = resp.json()
+        results = data.get("data", [])
+        if results:
+            album = results[0].get("album", {})
+            return album.get("cover_xl") or album.get("cover_big") or album.get("cover_medium")
+    except Exception:
+        pass
+    return None
+
+
 async def _resolve_artwork(client: httpx.AsyncClient, artist: str, title: str, lastfm_url: str | None) -> str:
     if not _is_placeholder(lastfm_url):
         return lastfm_url or ""
@@ -413,7 +448,20 @@ async def get_top_items(
             query = f"{entry['subtitle']} {entry['name']}"
         else:
             query = entry["name"]
-        art = await _search_itunes_entity(client, query, itunes_entity)
+        # For artists, try Deezer first for actual artist photos
+        if itunes_entity == "musicArtist":
+            art = await _search_deezer_artist(client, entry["name"])
+            if not art:
+                art = await _search_itunes_entity(client, query, itunes_entity)
+        else:
+            # Try iTunes with full "artist trackname" query
+            art = await _search_itunes_entity(client, query, itunes_entity)
+            # Fallback: try Deezer (different catalog, better fuzzy matching)
+            if not art:
+                art = await _search_deezer_track(client, query)
+            # Fallback: try iTunes with just the track/album name
+            if not art:
+                art = await _search_itunes_entity(client, entry["name"], itunes_entity)
         _set_cached_artwork(cache_key, art)
         entry["imageUrl"] = art or ""
 
@@ -532,7 +580,7 @@ async def get_listening_clock(user: str = Query(..., min_length=1), request: Req
 
     from datetime import datetime, timezone, timedelta
     now = datetime.now(tz=timezone.utc).astimezone()
-    cutoff = (now - timedelta(days=7)).replace(hour=0, minute=0, second=0, microsecond=0)
+    cutoff = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Fetch up to 10 pages (2000 tracks) for heavy listeners
     done = False
