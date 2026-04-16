@@ -46,6 +46,9 @@ export default function Dashboard() {
   const [colors, setColors] = useState<PaletteColors>(DEFAULT_PALETTE);
   const [chromeVisible, setChromeVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showHint, setShowHint] = useState(
+    () => !localStorage.getItem("ryplay-username"),
+  );
   const [toast, setToast] = useState<{
     title: string;
     artist: string;
@@ -131,6 +134,24 @@ export default function Dashboard() {
       window.removeEventListener("focus", wakeChrome);
     };
   }, [wakeChrome]);
+
+  // Auto-dismiss first-visit hint
+  useEffect(() => {
+    if (!showHint) return;
+    const el = scrollRef.current;
+    const dismiss = () => setShowHint(false);
+    const autoTimer = setTimeout(dismiss, 7000);
+    const attachTimer = window.setTimeout(() => {
+      window.addEventListener("click", dismiss, { once: true });
+      el?.addEventListener("scroll", dismiss, { once: true });
+    }, 1500);
+    return () => {
+      clearTimeout(autoTimer);
+      clearTimeout(attachTimer);
+      window.removeEventListener("click", dismiss);
+      el?.removeEventListener("scroll", dismiss);
+    };
+  }, [showHint]);
 
   const activePageRef = useRef(0);
 
@@ -231,6 +252,33 @@ export default function Dashboard() {
           </button>
         </div>
       </motion.header>
+
+      {/* First-visit hint pointing at username */}
+      <AnimatePresence>
+        {showHint && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ delay: 1, type: "spring", stiffness: 400, damping: 28 }}
+            className="fixed top-14 right-4 sm:right-6 z-40 flex flex-col items-end gap-1.5 pointer-events-none"
+          >
+            <svg
+              width="16"
+              height="10"
+              viewBox="0 0 16 10"
+              className="mr-3 text-white/80"
+            >
+              <path d="M8 0L16 10H0z" fill="currentColor" />
+            </svg>
+            <div className="rounded-xl bg-white/10 backdrop-blur-xl ring-1 ring-white/15 px-4 py-3 max-w-[220px]">
+              <p className="text-sm text-white/80 leading-snug">
+                tap the username above to switch users or enter your own
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Dot navigation — expands to ToC on hover */}
       <NavDots

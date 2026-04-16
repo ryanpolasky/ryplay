@@ -10,11 +10,13 @@ import {
 interface UserContextType {
   username: string | null;
   setUsername: (username: string | null) => void;
+  peekUsername: (username: string) => void;
 }
 
 const UserContext = createContext<UserContextType>({
   username: null,
   setUsername: () => {},
+  peekUsername: () => {},
 });
 
 function usernameFromPath(): string | null {
@@ -60,8 +62,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Navigate to a profile without saving to localStorage (guest peek)
+  const peekUsername = useCallback((name: string) => {
+    setUsernameRaw(name);
+    window.history.pushState(null, "", `/${name}`);
+  }, []);
+
   return (
-    <UserContext.Provider value={{ username, setUsername }}>
+    <UserContext.Provider value={{ username, setUsername, peekUsername }}>
       {children}
     </UserContext.Provider>
   );

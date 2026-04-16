@@ -38,12 +38,13 @@ export function setGradientFavicon(from: string, to: string) {
 
   const url = c.toDataURL("image/png");
 
-  let link = document.querySelector<HTMLLinkElement>("link[rel='icon']");
-  if (!link) {
-    link = document.createElement("link");
-    link.rel = "icon";
-    document.head.appendChild(link);
-  }
+  // Safari ignores href mutations — remove and re-append to force update
+  const old = document.querySelector<HTMLLinkElement>("link[rel='icon']");
+  if (old) old.remove();
+
+  const link = document.createElement("link");
+  link.rel = "icon";
   link.type = "image/png";
   link.href = url;
+  document.head.appendChild(link);
 }

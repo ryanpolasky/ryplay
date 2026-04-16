@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "../context/UserContext";
 import Logo, { PASTEL_PALETTES, randomPaletteIndex } from "./Logo";
@@ -10,12 +10,60 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 export default function Landing() {
-  const { setUsername } = useUser();
+  const { setUsername, peekUsername } = useUser();
   const [input, setInput] = useState("");
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showInfo, setShowInfo] = useState(false);
+  const [showPeekHint, setShowPeekHint] = useState(
+    () => !localStorage.getItem("ryplay-username"),
+  );
   const [paletteIdx, setPaletteIdx] = useState(() => randomPaletteIndex());
+  const peekBtnRef = useRef<HTMLButtonElement>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Measure button position + auto-dismiss for peek hint
+  useEffect(() => {
+    if (!showPeekHint) return;
+    const measureTimer = setTimeout(() => {
+      if (!peekBtnRef.current) return;
+      const rect = peekBtnRef.current.getBoundingClientRect();
+      setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top });
+    }, 700);
+    const dismissTimer = setTimeout(() => setShowPeekHint(false), 8000);
+    const dismiss = () => setShowPeekHint(false);
+    const attachTimer = setTimeout(() => {
+      window.addEventListener("click", dismiss, { once: true });
+    }, 1200);
+    const onResize = () => {
+      if (!peekBtnRef.current) return;
+      const rect = peekBtnRef.current.getBoundingClientRect();
+      setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top });
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      clearTimeout(measureTimer);
+      clearTimeout(dismissTimer);
+      clearTimeout(attachTimer);
+      window.removeEventListener("click", dismiss);
+      window.removeEventListener("resize", onResize);
+      setTooltipPos(null);
+    };
+  }, [showPeekHint]);
+
+  // Ctrl+R to reset all ryplay localStorage
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "r") {
+        e.preventDefault();
+        localStorage.removeItem("ryplay-username");
+        localStorage.removeItem("ryplay-settings");
+        window.location.replace("/");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const palette = PASTEL_PALETTES[paletteIdx];
 
@@ -94,11 +142,15 @@ export default function Landing() {
           className="flex flex-col items-center gap-3"
         >
           <input
-            type="text"
+            type="search"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="last.fm username"
             autoFocus
+            autoComplete="off"
+            data-1p-ignore
+            data-lpignore="true"
+            data-form-type="other"
             className="w-full max-w-xs px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-center text-lg outline-none focus:bg-white/[0.07] transition-all"
             style={{ borderColor: `${palette.from}30` }}
           />
@@ -128,13 +180,28 @@ export default function Landing() {
           </motion.button>
         </form>
 
-        {/* Info button */}
-        <button
-          onClick={() => setShowInfo(true)}
-          className="mt-5 text-xs text-white/25 hover:text-white/50 transition-colors cursor-pointer"
-        >
-          what's last.fm?
-        </button>
+        {/* Links row */}
+        <div className="mt-5 flex items-center justify-center gap-2 text-xs">
+          <button
+            onClick={() => setShowInfo(true)}
+            className="text-white/25 hover:text-white/50 transition-colors cursor-pointer"
+          >
+            what's last.fm?
+          </button>
+          <span className="text-white/10">|</span>
+          <div className="relative">
+            <button
+              ref={peekBtnRef}
+              onClick={() => peekUsername("ryanpolasky")}
+              className="text-white/25 transition-colors cursor-pointer"
+              style={{ color: undefined }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = palette.from)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "")}
+            >
+              what's ryan listening to?
+            </button>
+          </div>
+        </div>
 
         <div className="mt-2 flex items-center justify-center gap-3 flex-wrap text-xs text-white/15">
           <span>powered by last.fm</span>
@@ -163,6 +230,49 @@ export default function Landing() {
           </span>
         </div>
       </motion.div>
+
+      {/* Peek hint tooltip */}
+      <AnimatePresence>
+        {showPeekHint && tooltipPos && (
+          <motion.div
+            key="peek-tooltip"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed z-[60] flex flex-col items-center justify-end pointer-events-none"
+            style={{
+              left: tooltipPos.x,
+              top: 0,
+              height: tooltipPos.y - 8,
+              transform: "translateX(-50%)",
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ y: -6 }}
+              transition={{
+                y: { type: "spring", stiffness: 400, damping: 28 },
+                opacity: { duration: 0.12, ease: "easeOut" },
+              }}
+              className="flex flex-col items-center"
+            >
+              <div className="rounded-xl bg-white/10 backdrop-blur-xl ring-1 ring-white/[0.08] border border-white/[0.06] px-4 py-3 max-w-[250px]">
+                <p className="text-sm text-white/80 leading-snug text-center">
+                  don't have an account but want to see the site in action?
+                </p>
+              </div>
+              <svg
+                width="16"
+                height="10"
+                viewBox="0 0 16 10"
+                className="text-white/80"
+              >
+                <path d="M8 10L0 0h16z" fill="currentColor" />
+              </svg>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Info modal */}
       <AnimatePresence>
