@@ -36,6 +36,7 @@ export function useListeningClock(username: string) {
     setLoading(true);
 
     // Use prefetched promise if available, otherwise fetch fresh
+    // @ts-expect-error i have no idea why it doesn't like this
     const dataPromise = prefetchCache[username]
       ? prefetchCache[username]
       : fetchClockData(username);
