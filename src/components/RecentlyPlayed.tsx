@@ -81,7 +81,9 @@ function StreakBadge({ streak, accent }: { streak: number; accent: string }) {
 export default function RecentlyPlayed({ tracks, colors }: Props) {
   const accent = colors.vibrant;
 
-  if (tracks.length === 0) return null;
+  const displayTracks = tracks.slice(0, 8);
+
+  if (displayTracks.length === 0) return null;
 
   return (
     <Panel id="recent">
@@ -91,7 +93,7 @@ export default function RecentlyPlayed({ tracks, colors }: Props) {
 
           {/* Track list */}
           <div className="flex flex-col gap-1.5">
-            {tracks.map((track, i) => {
+            {displayTracks.map((track, i) => {
               const streak = track.streak ?? 1;
               const { tier } = getStreakTier(streak);
               const proxyArt = track.artworkUrl

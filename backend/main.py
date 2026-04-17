@@ -18,6 +18,10 @@ LASTFM_API_URL = "https://ws.audioscrobbler.com/2.0/"
 API_KEY = os.getenv("LASTFM_API_KEY", "")
 LASTFM_PLACEHOLDER_SUFFIX = "2a96cbd8b46e442fc41c2b86b821562f.png"
 
+# Spotify client credentials (optional — enables extra fallback for artist/track images)
+SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID", "")
+SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET", "")
+
 ARTWORK_CACHE_TTL = 6 * 60 * 60  # 6 hours
 ARTWORK_CACHE_MAX = 500
 STATS_CACHE_TTL = 60 * 60  # 1 hour
@@ -27,6 +31,7 @@ GRACE_PERIOD = 45  # seconds
 artwork_cache: dict[str, tuple[str | None, float]] = {}
 stats_cache: dict[str, tuple[dict, float]] = {}
 grace_cache: dict[str, tuple[dict, float]] = {}  # user -> (last_playing_data, last_active_time)
+_spotify_token: tuple[str, float] | None = None  # (access_token, expires_at)
 
 
 def _track_hash(artist: str, title: str) -> str:
@@ -134,6 +139,74 @@ async def _search_deezer_track(client: httpx.AsyncClient, query: str) -> str | N
     return None
 
 
+async def _get_spotify_token(client: httpx.AsyncClient) -> str | None:
+    """Get Spotify access token via client credentials flow. Returns None if creds aren't set."""
+    global _spotify_token
+    if not SPOTIFY_CLIENT_ID or not SPOTIFY_CLIENT_SECRET:
+        return None
+    if _spotify_token and time.time() < _spotify_token[1] - 60:
+        return _spotify_token[0]
+    try:
+        resp = await client.post(
+            "https://accounts.spotify.com/api/token",
+            data={"grant_type": "client_credentials"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            auth=(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET),
+            timeout=5.0,
+        )
+        data = resp.json()
+        token = data["access_token"]
+        expires_in = data.get("expires_in", 3600)
+        _spotify_token = (token, time.time() + expires_in)
+        return token
+    except Exception:
+        return None
+
+
+async def _search_spotify_artist(client: httpx.AsyncClient, name: str) -> str | None:
+    """Search Spotify for an artist photo."""
+    token = await _get_spotify_token(client)
+    if not token:
+        return None
+    try:
+        resp = await client.get(
+            "https://api.spotify.com/v1/search",
+            params={"q": name, "type": "artist", "limit": 1},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5.0,
+        )
+        data = resp.json()
+        items = data.get("artists", {}).get("items", [])
+        if items and items[0].get("images"):
+            return items[0]["images"][0]["url"]
+    except Exception:
+        pass
+    return None
+
+
+async def _search_spotify_track(client: httpx.AsyncClient, artist: str, title: str) -> str | None:
+    """Search Spotify for track album artwork."""
+    token = await _get_spotify_token(client)
+    if not token:
+        return None
+    try:
+        resp = await client.get(
+            "https://api.spotify.com/v1/search",
+            params={"q": f"artist:{artist} track:{title}", "type": "track", "limit": 1},
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=5.0,
+        )
+        data = resp.json()
+        items = data.get("tracks", {}).get("items", [])
+        if items:
+            images = items[0].get("album", {}).get("images", [])
+            if images:
+                return images[0]["url"]
+    except Exception:
+        pass
+    return None
+
+
 async def _resolve_artwork(client: httpx.AsyncClient, artist: str, title: str, lastfm_url: str | None, album: str = "") -> str:
     if not _is_placeholder(lastfm_url):
         return lastfm_url or ""
@@ -143,9 +216,11 @@ async def _resolve_artwork(client: httpx.AsyncClient, artist: str, title: str, l
     if cached is not ...:
         return cached or ""
 
-    # Chain: Deezer track → iTunes song → iTunes album
+    # Chain: Spotify track → Deezer track → iTunes song → iTunes album
     query = f"{artist} {title}"
-    art = await _search_deezer_track(client, query)
+    art = await _search_spotify_track(client, artist, title)
+    if not art:
+        art = await _search_deezer_track(client, query)
     if not art:
         art = await _search_itunes(client, artist, title)
     if not art and album:
@@ -180,7 +255,7 @@ def _extract_recent_tracks(tracks: list, client: httpx.AsyncClient) -> list[dict
                 "timestamp": timestamp,
                 "streak": 1,
             })
-        if len(recent) >= 9:
+        if len(recent) >= 12:
             break
 
     for entry in recent:
@@ -454,18 +529,23 @@ async def get_top_items(
             query = f"{entry['subtitle']} {entry['name']}"
         else:
             query = entry["name"]
-        # For artists, try Deezer first for actual artist photos
+        # For artists, try Spotify first (best coverage), then Deezer, then iTunes
         if itunes_entity == "musicArtist":
-            art = await _search_deezer_artist(client, entry["name"])
+            art = await _search_spotify_artist(client, entry["name"])
+            if not art:
+                art = await _search_deezer_artist(client, entry["name"])
             if not art:
                 art = await _search_itunes_entity(client, query, itunes_entity)
         else:
-            # Try iTunes with full "artist trackname" query
-            art = await _search_itunes_entity(client, query, itunes_entity)
-            # Fallback: try Deezer (different catalog, better fuzzy matching)
+            # Try Spotify first (most accurate for active listeners)
+            art = await _search_spotify_track(client, entry.get("subtitle", ""), entry["name"])
+            # Fallback: iTunes with full "artist trackname" query
+            if not art:
+                art = await _search_itunes_entity(client, query, itunes_entity)
+            # Fallback: Deezer (different catalog, better fuzzy matching)
             if not art:
                 art = await _search_deezer_track(client, query)
-            # Fallback: try iTunes with just the track/album name
+            # Fallback: iTunes with just the track/album name
             if not art:
                 art = await _search_itunes_entity(client, entry["name"], itunes_entity)
         _set_cached_artwork(cache_key, art)

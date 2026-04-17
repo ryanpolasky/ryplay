@@ -18,6 +18,7 @@ import StatsPanel from "./StatsPanel";
 import TopList from "./TopList";
 import GenreBreakdown from "./GenreBreakdown";
 import ListeningClock from "./ListeningClock";
+import { prefetchListeningClock } from "../hooks/useListeningClock";
 import { DEFAULT_PALETTE, type PaletteColors } from "../types/lastfm";
 
 const PANELS = [
@@ -34,6 +35,12 @@ const PANELS = [
 export default function Dashboard() {
   const { username, setUsername } = useUser();
   const { settings, isMobile } = useSettings();
+
+  // Prefetch clock data immediately so it's ready when user scrolls there
+  useEffect(() => {
+    if (username) prefetchListeningClock(username);
+  }, [username]);
+
   const [activePage, setActivePage] = useState(() => {
     const hash = window.location.hash.slice(1);
     const idx = PANELS.findIndex((p) => p.id === hash);

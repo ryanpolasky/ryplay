@@ -38,7 +38,7 @@ const bgKeyframes = `
 @keyframes bg-pulse      { 0%,100%{opacity:0.18} 50%{opacity:0.35} }
 @keyframes bg-gradient-rotate { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
 @keyframes bg-nebula-drift { 0%,100%{transform:rotate(0deg) scale(1)} 50%{transform:rotate(180deg) scale(1.3)} }
-@keyframes bg-ember { 0%{transform:translateY(0) scale(1);opacity:0.6} 50%{opacity:1} 100%{transform:translateY(-120vh) scale(0.3);opacity:0} }
+@keyframes bg-ember { 0%{transform:translateY(0) scale(1);opacity:0} 8%{opacity:0.7} 50%{opacity:1} 90%{opacity:0.2} 100%{transform:translateY(-120vh) scale(0.3);opacity:0} }
 `;
 
 let stylesInjected = false;
@@ -206,55 +206,69 @@ export const BACKGROUNDS: BackgroundDef[] = [
     previewStyle: (c) => ({
       background: `radial-gradient(ellipse at 50% 90%, ${c.vibrant}40 0%, transparent 40%), radial-gradient(ellipse at 50% 95%, ${c.dominant}30 0%, transparent 30%), ${c.dark}`,
     }),
-    component: ({ colors, isMobile }) => {
-      injectStyles();
-      const count = isMobile ? 10 : 25;
-      return (
-        <div className="absolute inset-0 overflow-hidden">
-          <motion.div
-            animate={{ backgroundColor: colors.dark }}
-            transition={{ duration: 2 }}
-            className="absolute inset-0"
-          />
-          <motion.div
-            className="absolute -inset-x-[20%] bottom-0 h-3/5"
-            animate={{
-              background: `linear-gradient(to top, ${colors.vibrant}30 0%, ${colors.dominant}15 30%, transparent 100%)`,
-            }}
-            transition={{ duration: 2 }}
-            style={{ filter: "blur(25px)" }}
-          />
-          {Array.from({ length: count }, (_, i) => {
-            const size = 2 + Math.random() * 5;
-            return (
+    component: (() => {
+      // Pre-generate random values so re-renders don't reset ember positions
+      const MAX = 25;
+      const bucketWidth = 100 / MAX;
+      const seeds = Array.from({ length: MAX }, (_, i) => ({
+        size: 2 + Math.random() * 5,
+        left: i * bucketWidth + Math.random() * bucketWidth,
+        bottom: 2 + Math.random() * 5,
+        duration: 6 + Math.random() * 14,
+        delay: -Math.random() * 18,
+      }));
+      // Shuffle so adjacent embers don't share similar size/timing
+      for (let i = seeds.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [seeds[i], seeds[j]] = [seeds[j], seeds[i]];
+      }
+      return ({ colors, isMobile }: { colors: PaletteColors; isMobile: boolean }) => {
+        injectStyles();
+        const count = isMobile ? 10 : MAX;
+        return (
+          <div className="absolute inset-0 overflow-hidden">
+            <motion.div
+              animate={{ backgroundColor: colors.dark }}
+              transition={{ duration: 2 }}
+              className="absolute inset-0"
+            />
+            <motion.div
+              className="absolute -inset-x-[20%] bottom-0 h-3/5"
+              animate={{
+                background: `linear-gradient(to top, ${colors.vibrant}30 0%, ${colors.dominant}15 30%, transparent 100%)`,
+              }}
+              transition={{ duration: 2 }}
+              style={{ filter: "blur(25px)" }}
+            />
+            {seeds.slice(0, count).map((s, i) => (
               <div
                 key={i}
                 className="absolute rounded-full will-change-transform"
                 style={{
-                  left: `${Math.random() * 100}%`,
-                  bottom: `-${2 + Math.random() * 5}%`,
-                  width: `${size}px`,
-                  height: `${size}px`,
+                  left: `${s.left}%`,
+                  bottom: `-${s.bottom}%`,
+                  width: `${s.size}px`,
+                  height: `${s.size}px`,
                   backgroundColor:
                     i % 3 === 0
                       ? colors.vibrant
                       : i % 3 === 1
                         ? colors.dominant
                         : colors.light,
-                  boxShadow: `0 0 ${size * 2}px ${i % 3 === 0 ? colors.vibrant : colors.dominant}80`,
+                  boxShadow: `0 0 ${s.size * 2}px ${i % 3 === 0 ? colors.vibrant : colors.dominant}80`,
                   transition:
                     "background-color 2s linear, box-shadow 2s linear",
                   opacity: 0.7,
-                  animation: `bg-ember ${6 + Math.random() * 14}s linear infinite`,
-                  animationDelay: `${-Math.random() * 18}s`,
+                  animation: `bg-ember ${s.duration}s linear infinite`,
+                  animationDelay: `${s.delay}s`,
                 }}
               />
-            );
-          })}
-          <NoiseOverlay />
-        </div>
-      );
-    },
+            ))}
+            <NoiseOverlay />
+          </div>
+        );
+      };
+    })(),
   },
 
   /* ── Ryan's Background ── */

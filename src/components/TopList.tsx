@@ -20,27 +20,27 @@ interface Props {
 
 export default function TopList({ username, type, title, id, colors }: Props) {
   const [period, setPeriod] = useState<Period>("7day");
-  const { items, loading } = useTopItems(username, type, period);
+  const { items, loading } = useTopItems(username, type, period, 5);
   const maxCount = items.length > 0 ? items[0].playcount : 1;
   const vibrant = colors.vibrant;
 
   return (
     <Panel id={id}>
-      {/* Section header */}
-      <SectionHeader label={title} colors={colors} />
+      <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full">
+        <SectionHeader label={title} colors={colors} />
 
-      <div className="flex justify-center sm:justify-end mb-6">
-        <PeriodSelector value={period} onChange={setPeriod} id={id} />
-      </div>
-
-      {loading ? (
-        <Spinner />
-      ) : items.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-white/30 text-sm">
-          no data for this period
+        <div className="flex justify-center sm:justify-end mb-6">
+          <PeriodSelector value={period} onChange={setPeriod} id={id} />
         </div>
-      ) : (
-        <div className="flex-1 flex flex-col gap-1.5 max-w-2xl">
+
+        {loading ? (
+          <Spinner />
+        ) : items.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-white/30 text-sm">
+            no data for this period
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
           {items.map((item, i) => {
             const pct = (item.playcount / maxCount) * 100;
             const proxyUrl = item.imageUrl
@@ -107,6 +107,7 @@ export default function TopList({ username, type, title, id, colors }: Props) {
           })}
         </div>
       )}
+      </div>
     </Panel>
   );
 }

@@ -386,6 +386,17 @@ async function extractWithVibrant(proxyUrl: string): Promise<PaletteColors> {
 
 // --- Hook ---
 
+/** Preload image into browser decode cache so <img> renders instantly */
+function preloadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 export function useArtworkPalette(imageUrl: string | null) {
   const [palette, setPalette] = useState<PaletteColors>(DEFAULT_PALETTE);
   const [isExtracted, setIsExtracted] = useState(false);
@@ -398,20 +409,23 @@ export function useArtworkPalette(imageUrl: string | null) {
       return;
     }
 
+    let cancelled = false;
     const proxyUrl = `/api/artwork?url=${encodeURIComponent(imageUrl)}`;
 
-    // Try node-vibrant/browser first, fall back to canvas extraction
-    extractWithVibrant(proxyUrl)
-      .then((colors) => {
-        setPalette(colors);
-        setIsExtracted(true);
-      })
-      .catch(() => {
-        // Vibrant failed — fall back to canvas
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = proxyUrl;
-        img.onload = () => {
+    // Extract colors AND preload image in parallel — only update palette
+    // once both are done so the <img> in TrackCard displays instantly
+    // when the color transition fires
+    const colorsReady = extractWithVibrant(proxyUrl).catch(() => null);
+    const imgReady = preloadImage(proxyUrl);
+
+    Promise.all([colorsReady, imgReady])
+      .then(([colors, img]) => {
+        if (cancelled) return;
+        if (colors) {
+          setPalette(colors);
+          setIsExtracted(true);
+        } else {
+          // Vibrant failed — canvas fallback with already-loaded image
           try {
             setPalette(extractFromCanvas(img));
             setIsExtracted(true);
@@ -419,12 +433,17 @@ export function useArtworkPalette(imageUrl: string | null) {
             setPalette(DEFAULT_PALETTE);
             setIsExtracted(false);
           }
-        };
-        img.onerror = () => {
-          setPalette(DEFAULT_PALETTE);
-          setIsExtracted(false);
-        };
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPalette(DEFAULT_PALETTE);
+        setIsExtracted(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [imageUrl]);
 
   // Apply as CSS custom properties
