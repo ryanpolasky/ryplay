@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
+import { useRef } from "react";
 import { useSettings } from "../context/SettingsContext";
 import { BACKGROUNDS } from "../lib/backgrounds";
 import { FONTS } from "../types/settings";
@@ -12,6 +13,7 @@ interface Props {
 
 export default function SettingsPanel({ open, onClose, colors }: Props) {
   const { settings, setSetting, isMobile } = useSettings();
+  const touchStartY = useRef(0);
 
   return (
     <AnimatePresence>
@@ -21,7 +23,7 @@ export default function SettingsPanel({ open, onClose, colors }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-40"
+          className="fixed inset-0 z-40 touch-none"
           onClick={onClose}
         >
           {/* Backdrop */}
@@ -29,24 +31,36 @@ export default function SettingsPanel({ open, onClose, colors }: Props) {
 
           {/* Panel */}
           {isMobile ? (
-            /* ── Mobile: bottom sheet ── */
+            /* ── Mobile: bottom sheet with drag-to-dismiss ── */
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              onTouchStart={(e) => {
+                touchStartY.current = e.touches[0].clientY;
+              }}
+              onTouchEnd={(e) => {
+                const dy = e.changedTouches[0].clientY - touchStartY.current;
+                if (dy > 50) onClose();
+              }}
               onClick={(e) => e.stopPropagation()}
-              className="absolute inset-x-0 bottom-0 max-h-[70vh] overflow-y-auto rounded-t-2xl bg-black/80 backdrop-blur-xl ring-1 ring-white/10 scrollbar-hide"
+              className="absolute inset-x-0 bottom-0 max-h-[70vh] rounded-t-2xl bg-black/80 backdrop-blur-xl ring-1 ring-white/10"
             >
-              {/* Drag handle */}
-              <div className="sticky top-0 z-10 flex justify-center pt-3 pb-2 bg-black/80">
+              {/* Drag handle — tap to close */}
+              <div
+                className="sticky top-0 z-10 flex justify-center pt-3 pb-2 bg-black/80 rounded-t-2xl"
+                onClick={onClose}
+              >
                 <div className="w-10 h-1 rounded-full bg-white/20" />
               </div>
-              <PanelContent
-                colors={colors}
-                settings={settings}
-                setSetting={setSetting}
-              />
+              <div className="overflow-y-auto max-h-[calc(70vh-28px)] scrollbar-hide">
+                <PanelContent
+                  colors={colors}
+                  settings={settings}
+                  setSetting={setSetting}
+                />
+              </div>
             </motion.div>
           ) : (
             /* ── Desktop: side drawer ── */
