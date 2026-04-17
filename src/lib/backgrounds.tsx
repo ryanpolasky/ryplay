@@ -71,55 +71,59 @@ export const BACKGROUNDS: BackgroundDef[] = [
           className="absolute inset-0 opacity-60"
         />
         <motion.div
-          animate={
-            !isMobile
-              ? {
-                  backgroundColor: colors.dominant,
-                  x: ["-10%", "10%", "-5%"],
-                  y: ["-10%", "-5%", "5%"],
-                }
-              : { backgroundColor: colors.dominant }
-          }
+          animate={{
+            backgroundColor: colors.dominant,
+            ...(!isMobile && {
+              x: ["-10%", "10%", "-5%"],
+              y: ["-10%", "-5%", "5%"],
+            }),
+          }}
           transition={{ duration: 10, repeat: Infinity, repeatType: "mirror" }}
-          className="absolute -left-[10%] -top-[20%] rounded-full will-change-transform"
+          className="absolute rounded-full will-change-transform"
           style={{
-            width: isMobile ? "60vw" : "70vh",
-            height: isMobile ? "60vw" : "70vh",
+            left: isMobile ? "10%" : "-10%",
+            top: isMobile ? "5%" : "-20%",
+            width: isMobile ? "65vw" : "70vh",
+            height: isMobile ? "65vw" : "70vh",
             filter: isMobile ? "blur(60px)" : "blur(100px)",
-            opacity: isMobile ? 0.3 : 0.5,
+            opacity: isMobile ? 0.4 : 0.5,
             mixBlendMode: isMobile ? "normal" : "screen",
           }}
         />
         <motion.div
-          animate={
-            !isMobile
-              ? {
-                  backgroundColor: colors.vibrant,
-                  x: ["5%", "-5%", "5%"],
-                  y: ["5%", "10%", "-5%"],
-                }
-              : { backgroundColor: colors.vibrant }
-          }
+          animate={{
+            backgroundColor: colors.vibrant,
+            ...(!isMobile && {
+              x: ["5%", "-5%", "5%"],
+              y: ["5%", "10%", "-5%"],
+            }),
+          }}
           transition={{ duration: 12, repeat: Infinity, repeatType: "mirror" }}
-          className="absolute -bottom-[20%] -right-[10%] rounded-full will-change-transform"
+          className="absolute rounded-full will-change-transform"
           style={{
+            right: isMobile ? "5%" : "-10%",
+            bottom: isMobile ? "5%" : "-20%",
             width: isMobile ? "70vw" : "80vh",
             height: isMobile ? "70vw" : "80vh",
-            filter: isMobile ? "blur(80px)" : "blur(120px)",
-            opacity: isMobile ? 0.25 : 0.4,
+            filter: isMobile ? "blur(70px)" : "blur(120px)",
+            opacity: isMobile ? 0.35 : 0.4,
             mixBlendMode: isMobile ? "normal" : "screen",
           }}
         />
-        {!isMobile && (
-          <motion.div
-            animate={{
-              backgroundColor: colors.light,
-              opacity: [0.1, 0.3, 0.1],
-            }}
-            transition={{ duration: 5, repeat: Infinity, repeatType: "mirror" }}
-            className="absolute left-1/2 top-1/2 h-[50vh] w-[50vh] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[100px] mix-blend-overlay will-change-transform"
-          />
-        )}
+        <motion.div
+          animate={{
+            backgroundColor: colors.light,
+            opacity: [0.1, 0.25, 0.1],
+          }}
+          transition={{ duration: 5, repeat: Infinity, repeatType: "mirror" }}
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full will-change-transform"
+          style={{
+            width: isMobile ? "40vw" : "50vh",
+            height: isMobile ? "40vw" : "50vh",
+            filter: isMobile ? "blur(60px)" : "blur(100px)",
+            mixBlendMode: isMobile ? "normal" : "overlay",
+          }}
+        />
         {!isMobile && <NoiseOverlay />}
       </div>
     ),
