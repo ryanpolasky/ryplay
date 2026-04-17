@@ -39,6 +39,9 @@ const bgKeyframes = `
 @keyframes bg-gradient-rotate { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
 @keyframes bg-nebula-drift { 0%,100%{transform:rotate(0deg) scale(1)} 50%{transform:rotate(180deg) scale(1.3)} }
 @keyframes bg-ember { 0%{transform:translateY(0) scale(1);opacity:0} 8%{opacity:0.7} 50%{opacity:1} 90%{opacity:0.2} 100%{transform:translateY(-120vh) scale(0.3);opacity:0} }
+@keyframes bg-drift-morph1 { 0%{transform:translate(-50%,-30%) scale(1) rotate(0deg)} 33%{transform:translate(-45%,-38%) scale(1.1) rotate(3deg)} 66%{transform:translate(-56%,-25%) scale(0.95) rotate(-2deg)} 100%{transform:translate(-50%,-30%) scale(1) rotate(0deg)} }
+@keyframes bg-drift-morph2 { 0%{transform:translate(-50%,-30%) scale(1) rotate(0deg)} 25%{transform:translate(-57%,-24%) scale(1.08) rotate(-4deg)} 50%{transform:translate(-46%,-34%) scale(0.92) rotate(2deg)} 75%{transform:translate(-53%,-37%) scale(1.05) rotate(-1deg)} 100%{transform:translate(-50%,-30%) scale(1) rotate(0deg)} }
+@keyframes bg-drift-morph3 { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} 40%{transform:translate(-42%,-46%) scale(0.9) rotate(5deg)} 80%{transform:translate(-55%,-56%) scale(1.12) rotate(-3deg)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} }
 `;
 
 let stylesInjected = false;
@@ -479,87 +482,110 @@ export const BACKGROUNDS: BackgroundDef[] = [
     },
   },
 
-  /* ── Lava Lamp ── */
+  /* ── Smoke ── */
   {
-    id: "lava",
-    name: "Lava Lamp",
-    description: "Slow, stretchy blobs. Retro warmth.",
+    id: "smoke",
+    name: "Smoke",
+    description: "Ink in water. Organic color clouds.",
     previewStyle: (c) => ({
       background: `
-        radial-gradient(ellipse at 35% 60%, ${c.dominant}80 0%, transparent 45%),
-        radial-gradient(ellipse at 65% 35%, ${c.vibrant}60 0%, transparent 40%),
+        radial-gradient(ellipse at 30% 40%, ${c.vibrant}50 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 60%, ${c.dominant}40 0%, transparent 45%),
         ${c.dark}`,
     }),
-    component: ({ colors, isMobile }) => (
-      <div className="absolute inset-0 overflow-hidden">
-        <motion.div
-          animate={{ backgroundColor: colors.dark }}
-          transition={{ duration: 2 }}
-          className="absolute inset-0"
-        />
-        {[
-          {
-            color: "dominant" as const,
-            x: ["15%", "55%", "35%", "15%"],
-            y: ["15%", "45%", "75%", "15%"],
-            w: "30vh",
-            h: "50vh",
-            dur: 28,
-          },
-          {
-            color: "vibrant" as const,
-            x: ["65%", "25%", "55%", "65%"],
-            y: ["65%", "25%", "10%", "65%"],
-            w: "25vh",
-            h: "45vh",
-            dur: 32,
-          },
-          {
-            color: "light" as const,
-            x: ["40%", "65%", "20%", "40%"],
-            y: ["10%", "55%", "40%", "10%"],
-            w: "22vh",
-            h: "38vh",
-            dur: 24,
-          },
-        ].map((blob, i) => (
+    component: ({ colors, isMobile }) => {
+      injectStyles();
+      const blurBase = isMobile ? 50 : 80;
+      return (
+        <div className="absolute inset-0 overflow-hidden">
           <motion.div
-            key={i}
-            animate={{
-              left: blob.x,
-              top: blob.y,
-              backgroundColor: colors[blob.color],
-              borderRadius: [
-                "40% 60% 55% 45% / 55% 45% 60% 40%",
-                "55% 45% 40% 60% / 45% 60% 40% 55%",
-                "45% 55% 60% 40% / 60% 40% 55% 45%",
-                "40% 60% 55% 45% / 55% 45% 60% 40%",
-              ],
-            }}
-            transition={{
-              left: { duration: blob.dur, repeat: Infinity, ease: "easeInOut" },
-              top: { duration: blob.dur, repeat: Infinity, ease: "easeInOut" },
-              borderRadius: {
-                duration: blob.dur * 0.8,
-                repeat: Infinity,
-                ease: "easeInOut",
-              },
-              backgroundColor: { duration: 2 },
-            }}
-            className="absolute will-change-transform"
-            style={{
-              width: isMobile ? "40vw" : blob.w,
-              height: isMobile ? "55vw" : blob.h,
-              filter: isMobile ? "blur(45px)" : "blur(70px)",
-              opacity: 0.5,
-              mixBlendMode: "screen",
-              transform: "translate(-50%, -50%)",
-            }}
+            animate={{ backgroundColor: colors.dark }}
+            transition={{ duration: 2 }}
+            className="absolute inset-0"
           />
-        ))}
-        <NoiseOverlay />
-      </div>
-    ),
+          <svg className="absolute" width="0" height="0">
+            <defs>
+              <filter id="drift-warp">
+                <feTurbulence
+                  type="turbulence"
+                  baseFrequency="0.015"
+                  numOctaves="3"
+                  seed="2"
+                  result="noise"
+                />
+                <feDisplacementMap
+                  in="SourceGraphic"
+                  in2="noise"
+                  scale={isMobile ? 35 : 50}
+                  xChannelSelector="R"
+                  yChannelSelector="G"
+                />
+              </filter>
+            </defs>
+          </svg>
+          <div
+            className="absolute inset-0"
+            style={{ filter: "url(#drift-warp)" }}
+          >
+            {/* Cloud 1 */}
+            <motion.div
+              className="absolute will-change-transform"
+              animate={{ backgroundColor: colors.dominant }}
+              transition={{ duration: 2 }}
+              style={{
+                width: isMobile ? "70vw" : "45vmax",
+                height: isMobile ? "70vw" : "45vmax",
+                left: "25%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                borderRadius: "40% 60% 55% 45% / 55% 45% 60% 40%",
+                filter: `blur(${blurBase}px)`,
+                opacity: 0.5,
+                mixBlendMode: "screen",
+                animation: "bg-drift-morph1 35s ease-in-out infinite",
+              }}
+            />
+            {/* Cloud 2 */}
+            <motion.div
+              className="absolute will-change-transform"
+              animate={{ backgroundColor: colors.vibrant }}
+              transition={{ duration: 2 }}
+              style={{
+                width: isMobile ? "60vw" : "40vmax",
+                height: isMobile ? "60vw" : "40vmax",
+                left: "75%",
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                borderRadius: "55% 45% 40% 60% / 45% 60% 55% 40%",
+                filter: `blur(${blurBase + 10}px)`,
+                opacity: 0.45,
+                mixBlendMode: "screen",
+                animation: "bg-drift-morph2 42s ease-in-out infinite",
+              }}
+            />
+            {/* Cloud 3 */}
+            <motion.div
+              className="absolute will-change-transform"
+              animate={{ backgroundColor: colors.light }}
+              transition={{ duration: 2 }}
+              style={{
+                width: isMobile ? "50vw" : "38vmax",
+                height: isMobile ? "50vw" : "38vmax",
+                left: "50%",
+                top: "70%",
+                transform: "translate(-50%, -50%)",
+                borderRadius: "45% 55% 60% 40% / 60% 40% 45% 55%",
+                filter: `blur(${blurBase}px)`,
+                opacity: 0.35,
+                mixBlendMode: "screen",
+                animation: "bg-drift-morph3 28s ease-in-out infinite",
+              }}
+            />
+          </div>
+          <NoiseOverlay />
+        </div>
+      );
+    },
   },
 
   /* ── Nebula ── */
