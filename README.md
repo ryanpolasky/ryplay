@@ -9,24 +9,26 @@ Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 - **Now Playing** - live track display with album art, animated EQ bars, and dynamic color extraction
 - **Recently Played** - track history with streak detection (x2 REPEAT through x10+ OBSESSED)
 - **Profile Overview** - all-time stats: scrobbles, artists, tracks, albums, daily average, top genre, #1s
-- **Top Artists / Tracks / Albums** - filterable by time period (7 days to all time) with artwork via iTunes fallback
+- **Top Artists / Tracks / Albums** - filterable by time period (7 days to all time)
 - **Genre Breakdown** - powered by iTunes/Apple Music artist genre data
 - **Listening Clock** - 7-day heatmap of listening activity by hour
 - **Shareable Stats Card** - generates a 1080x1350 PNG summary with album art, stats, and top artists/tracks
 - **Dynamic Theming** - background, logo, and favicon colors extracted from current album art
+- **8 Backgrounds** - Default, Solid, Gradient, Dual Tone, Embers, Reactive, Smoke, and Nebula
+- **Customizable Fonts** - choose from multiple font options in the settings panel
 - **URL Routing** - shareable profiles at `ryplay.dev/{username}`
 - **Auto-hide UI** - chrome fades after 15s idle, on window blur, or tab switch
 - **Keyboard Navigation** - arrow keys to move between panels
 
 ## Tech Stack
 
-| Layer            | Tech                                                                 |
-| ---------------- | -------------------------------------------------------------------- |
-| Frontend         | React 19, TypeScript, Vite, Tailwind CSS v4, Framer Motion           |
-| Backend          | Python, FastAPI, httpx                                               |
-| Color Extraction | Canvas-based median-cut quantization (node-vibrant/browser fallback) |
-| Artwork Fallback | iTunes Search API                                                    |
-| Genre Data       | iTunes/Apple Music artist genre lookups                              |
+| Layer            | Tech                                                              |
+|------------------|-------------------------------------------------------------------|
+| Frontend         | React 19, TypeScript, Vite, Tailwind CSS v4, Framer Motion        |
+| Backend          | Python, FastAPI, httpx                                            |
+| Color Extraction | node-vibrant/browser with canvas median-cut fallback              |
+| Artwork Lookup   | Spotify Web API > Deezer > iTunes Search API (cascading fallback) |
+| Genre Data       | iTunes/Apple Music artist genre lookups                           |
 
 ## Setup
 
@@ -50,7 +52,18 @@ Free and instant at [last.fm/api/account/create](https://www.last.fm/api/account
 LASTFM_API_KEY=your_key_here
 ```
 
-### 4. Run
+### 4. (Optional) Add Spotify credentials for better artwork
+
+Spotify provides the most accurate album art, especially for niche artists. Create a free app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) and add to `backend/.env`:
+
+```
+SPOTIFY_CLIENT_ID=your_client_id
+SPOTIFY_CLIENT_SECRET=your_client_secret
+```
+
+Without Spotify credentials, artwork falls back to Deezer and iTunes (still works fine, just less coverage for obscure tracks).
+
+### 5. Run
 
 ```bash
 # Terminal 1 - backend
@@ -65,12 +78,12 @@ Vite proxies `/api` to the FastAPI backend on port 8000.
 ## API Endpoints
 
 | Endpoint                                  | Description                                                            |
-| ----------------------------------------- | ---------------------------------------------------------------------- |
+|-------------------------------------------|------------------------------------------------------------------------|
 | `GET /api/music?user=`                    | Now playing + recent tracks with streak detection and artwork fallback |
 | `GET /api/music/stats?user=`              | Profile overview: all-time stats, #1 artist/track/album, top genre     |
-| `GET /api/top?type=&user=&period=&limit=` | Top artists/tracks/albums with iTunes artwork fallback                 |
+| `GET /api/top?type=&user=&period=&limit=` | Top artists/tracks/albums with cascading artwork fallback              |
 | `GET /api/genres?user=&period=`           | Genre breakdown via iTunes artist genre lookups                        |
-| `GET /api/clock?user=`                    | Listening clock heatmap (2000 tracks, 7x24 grid)                       |
+| `GET /api/clock?user=&tz=`                | Listening clock heatmap (up to 2000 tracks, 7x24 grid)                 |
 | `GET /api/artwork?url=`                   | CORS-compliant image proxy for color extraction                        |
 | `GET /api/lastfm`                         | Generic Last.fm API proxy                                              |
 
@@ -80,15 +93,13 @@ Vite proxies `/api` to the FastAPI backend on port 8000.
 ryplay/
   backend/
     main.py             # FastAPI server
-    .env                # LASTFM_API_KEY
+    .env                # LASTFM_API_KEY + optional Spotify creds
   src/
     components/         # React components
     hooks/              # Data fetching + color extraction
-    context/            # User context + URL routing
-    services/           # Last.fm API client
+    context/            # User + settings context
     types/              # TypeScript types
-    lib/                # Favicon generator
-  music-ref/            # Reference code from wrlt
+    lib/                # Backgrounds, favicon generator
 ```
 
 Built with <3 by [ryanpolasky](https://linkedin.com/in/ryan-polasky)
