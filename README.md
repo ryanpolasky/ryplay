@@ -2,7 +2,7 @@
 
 Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 
-<img width="1467" height="764" alt="Screenshot 2026-04-14 at 11 31 58 PM" src="https://github.com/user-attachments/assets/977b5759-094c-480b-9abe-f2ec2c1b7e05" />
+<img width="1200" height="721" alt="og" src="https://github.com/user-attachments/assets/62addbd2-5ee2-44bf-801f-bb7100352fed" />
 
 ## Features
 
