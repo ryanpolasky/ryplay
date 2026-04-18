@@ -66,6 +66,7 @@ export default function ScrollingText({ children, className = "" }: Props) {
       {isOverflowing ? (
         <div className="flex">
           <motion.div
+            key={String(children)}
             initial={{ x: 0 }}
             animate={{ x: -contentWidth - 32 }}
             transition={{
@@ -84,7 +85,9 @@ export default function ScrollingText({ children, className = "" }: Props) {
           </motion.div>
         </div>
       ) : (
-        <span ref={textRef}>{children}</span>
+        <span ref={textRef} className="truncate">
+          {children}
+        </span>
       )}
     </div>
   );

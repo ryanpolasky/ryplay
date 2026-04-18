@@ -61,49 +61,60 @@ export default function TrackCard({
       {/* Main card body */}
       <div className="relative flex flex-col gap-4 rounded-xl md:rounded-[2.2rem] bg-black/40 p-4 md:p-6 shadow-2xl backdrop-blur-md md:flex-row md:items-start md:gap-6">
         {/* Album art */}
-        <div className="relative mx-auto md:mx-0 shrink-0">
-          <motion.div
-            whileHover={{ scale: 1.03 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="relative aspect-square w-40 sm:w-48 md:w-52 overflow-hidden rounded-xl md:rounded-2xl shadow-2xl ring-1 ring-white/10"
-          >
-            <AnimatePresence mode="wait">
-              {proxyUrl ? (
-                <motion.img
-                  key={proxyUrl}
-                  src={proxyUrl}
-                  alt={`${title} album art`}
-                  crossOrigin="anonymous"
-                  className="h-full w-full object-cover"
-                  initial={{ opacity: 0, scale: 1.1 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                />
-              ) : (
-                <motion.div
-                  key="placeholder"
-                  className="flex h-full w-full items-center justify-center bg-white/5 text-white/20 text-4xl"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                >
-                  ♪
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+        <div
+          className="relative mx-auto md:mx-0 shrink-0"
+          style={{ perspective: 800 }}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={proxyUrl || "placeholder"}
+              className="relative"
+              style={{ transformStyle: "preserve-3d", backfaceVisibility: "hidden" }}
+              initial={{ rotateY: -90 }}
+              animate={{ rotateY: 0 }}
+              exit={{
+                rotateY: 90,
+                transition: { duration: 0.25, ease: "easeIn" },
+              }}
+              transition={{
+                rotateY: {
+                  type: "spring",
+                  stiffness: 250,
+                  damping: 14,
+                  mass: 0.9,
+                },
+              }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="relative aspect-square w-40 sm:w-48 md:w-52 overflow-hidden rounded-xl md:rounded-2xl shadow-2xl ring-1 ring-white/10"
+              >
+                {proxyUrl ? (
+                  <img
+                    src={proxyUrl}
+                    alt={`${title} album art`}
+                    crossOrigin="anonymous"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-white/5 text-white/20 text-4xl">
+                    ♪
+                  </div>
+                )}
+              </motion.div>
 
-          {/* Live / Offline badge */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className={`absolute -bottom-2 -right-2 md:-bottom-3 md:-right-3 z-10 flex items-center gap-1.5 md:gap-2 rounded-full border border-white/10 px-2.5 py-1 md:px-3 md:py-1.5 text-[9px] md:text-[10px] font-bold tracking-wider text-white shadow-xl backdrop-blur-xl ${isPlaying ? "bg-black/80" : "bg-neutral-900/90"}`}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${isPlaying ? "bg-green-400 animate-pulse" : "bg-white/30"}`}
-            />
-            {isPlaying ? "LIVE" : "OFFLINE"}
-          </motion.div>
+              {/* Live / Offline badge */}
+              <div
+                className={`absolute -bottom-2 -right-2 md:-bottom-3 md:-right-3 z-10 flex items-center gap-1.5 md:gap-2 rounded-full border border-white/10 px-2.5 py-1 md:px-3 md:py-1.5 text-[9px] md:text-[10px] font-bold tracking-wider text-white shadow-xl backdrop-blur-xl ${isPlaying ? "bg-black/80" : "bg-neutral-900/90"}`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${isPlaying ? "bg-green-400 animate-pulse" : "bg-white/30"}`}
+                />
+                {isPlaying ? "LIVE" : "OFFLINE"}
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
 
         {/* Track info */}
