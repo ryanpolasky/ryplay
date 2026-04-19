@@ -41,7 +41,10 @@ const bgKeyframes = `
 @keyframes bg-ember { 0%{transform:translateY(0) scale(1);opacity:0} 8%{opacity:0.7} 50%{opacity:1} 90%{opacity:0.2} 100%{transform:translateY(-120vh) scale(0.3);opacity:0} }
 @keyframes bg-drift-morph1 { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} 33%{transform:translate(-44%,-51%) scale(1.1) rotate(3deg)} 66%{transform:translate(-57%,-49%) scale(0.95) rotate(-2deg)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} }
 @keyframes bg-drift-morph2 { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} 25%{transform:translate(-57%,-49%) scale(1.08) rotate(-4deg)} 50%{transform:translate(-44%,-51%) scale(0.92) rotate(2deg)} 75%{transform:translate(-53%,-50%) scale(1.05) rotate(-1deg)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} }
-@keyframes bg-drift-morph3 { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} 40%{transform:translate(-42%,-49%) scale(0.9) rotate(5deg)} 80%{transform:translate(-55%,-51%) scale(1.12) rotate(-3deg)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} }
+@keyframes bg-drift-morph3 { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} 40%{transform:translate(-50%,-50%) scale(0.9) rotate(5deg)} 80%{transform:translate(-50%,-50%) scale(1.12) rotate(-3deg)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} }
+@keyframes bg-drift-mobile1 { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} 33%{transform:translate(-50%,-50%) scale(1.08) rotate(3deg)} 66%{transform:translate(-50%,-50%) scale(0.95) rotate(-2deg)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} }
+@keyframes bg-drift-mobile2 { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} 25%{transform:translate(-50%,-50%) scale(1.05) rotate(-3deg)} 50%{transform:translate(-50%,-50%) scale(0.93) rotate(2deg)} 75%{transform:translate(-50%,-50%) scale(1.03) rotate(-1deg)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} }
+@keyframes bg-drift-mobile3 { 0%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} 40%{transform:translate(-50%,-50%) scale(0.92) rotate(4deg)} 80%{transform:translate(-50%,-50%) scale(1.1) rotate(-3deg)} 100%{transform:translate(-50%,-50%) scale(1) rotate(0deg)} }
 `;
 
 let stylesInjected = false;
@@ -537,16 +540,18 @@ export const BACKGROUNDS: BackgroundDef[] = [
               animate={{ backgroundColor: colors.dominant }}
               transition={{ duration: 2 }}
               style={{
-                width: isMobile ? "80vw" : "55vmax",
-                height: isMobile ? "80vw" : "55vmax",
-                left: "25%",
-                top: "74%",
+                width: isMobile ? "75vw" : "55vmax",
+                height: isMobile ? "75vw" : "55vmax",
+                left: isMobile ? "50%" : "25%",
+                top: isMobile ? "20%" : "74%",
                 transform: "translate(-50%, -50%)",
                 borderRadius: "40% 60% 55% 45% / 55% 45% 60% 40%",
                 filter: `blur(${blurBase}px)`,
                 opacity: 0.5,
                 mixBlendMode: "screen",
-                animation: "bg-drift-morph1 35s ease-in-out infinite",
+                animation: isMobile
+                  ? "bg-drift-mobile1 35s ease-in-out infinite"
+                  : "bg-drift-morph1 35s ease-in-out infinite",
               }}
             />
             {/* Cloud 2 */}
@@ -555,16 +560,18 @@ export const BACKGROUNDS: BackgroundDef[] = [
               animate={{ backgroundColor: colors.vibrant }}
               transition={{ duration: 2 }}
               style={{
-                width: isMobile ? "70vw" : "50vmax",
-                height: isMobile ? "70vw" : "50vmax",
-                left: "75%",
-                top: "74%",
+                width: isMobile ? "75vw" : "50vmax",
+                height: isMobile ? "75vw" : "50vmax",
+                left: isMobile ? "50%" : "75%",
+                top: isMobile ? "50%" : "74%",
                 transform: "translate(-50%, -50%)",
                 borderRadius: "55% 45% 40% 60% / 45% 60% 55% 40%",
                 filter: `blur(${blurBase + 10}px)`,
                 opacity: 0.5,
                 mixBlendMode: "screen",
-                animation: "bg-drift-morph2 42s ease-in-out infinite",
+                animation: isMobile
+                  ? "bg-drift-mobile2 42s ease-in-out infinite"
+                  : "bg-drift-morph2 42s ease-in-out infinite",
               }}
             />
             {/* Cloud 3 */}
@@ -573,16 +580,18 @@ export const BACKGROUNDS: BackgroundDef[] = [
               animate={{ backgroundColor: colors.light }}
               transition={{ duration: 2 }}
               style={{
-                width: isMobile ? "60vw" : "45vmax",
-                height: isMobile ? "60vw" : "45vmax",
+                width: isMobile ? "75vw" : "45vmax",
+                height: isMobile ? "75vw" : "45vmax",
                 left: "50%",
-                top: "80%",
+                top: isMobile ? "80%" : "80%",
                 transform: "translate(-50%, -50%)",
                 borderRadius: "45% 55% 60% 40% / 60% 40% 45% 55%",
                 filter: `blur(${blurBase - 15}px)`,
                 opacity: 0.45,
                 mixBlendMode: "screen",
-                animation: "bg-drift-morph3 28s ease-in-out infinite",
+                animation: isMobile
+                  ? "bg-drift-mobile3 28s ease-in-out infinite"
+                  : "bg-drift-morph3 28s ease-in-out infinite",
               }}
             />
           </div>

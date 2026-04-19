@@ -61,18 +61,15 @@ export default function UnlockPanel({ colors }: Props) {
           <div className="flex flex-col gap-3">
             <button
               onClick={() => setShowInfo(true)}
-              className="w-full py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+              className="w-full py-3 rounded-xl text-sm font-medium text-white transition-all cursor-pointer"
               style={{
-                backgroundColor: `${colors.vibrant}20`,
-                color: `${colors.vibrant}cc`,
-                borderWidth: 1,
-                borderColor: `${colors.vibrant}30`,
+                backgroundColor: colors.vibrant,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = `${colors.vibrant}35`;
+                e.currentTarget.style.filter = "brightness(1.15)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = `${colors.vibrant}20`;
+                e.currentTarget.style.filter = "";
               }}
             >
               What's Last.fm?

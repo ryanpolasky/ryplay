@@ -52,6 +52,7 @@ export default function Dashboard() {
   const [showHint, setShowHint] = useState(
     () => !localStorage.getItem("ryplay-username"),
   );
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [toast, setToast] = useState<{
     title: string;
     artist: string;
@@ -320,12 +321,15 @@ export default function Dashboard() {
       >
         <Logo colors={colors} hasArtwork={isExtracted} className="text-base" />
         <div className="group/user relative">
-          <span className="text-sm text-white/40 cursor-default">
+          <button
+            className="text-sm text-white/40 cursor-pointer"
+            onClick={() => { setShowUserMenu((v) => !v); setShowHint(false); }}
+          >
             {username}
-          </span>
+          </button>
           <button
             onClick={() => setUsername(null)}
-            className="absolute top-full right-0 mt-1 text-[10px] text-white/30 hover:text-white/60 tracking-wide uppercase whitespace-nowrap cursor-pointer opacity-0 translate-y-[-4px] group-hover/user:opacity-100 group-hover/user:translate-y-0 transition-all duration-200 ease-out"
+            className={`absolute top-full right-0 mt-1 text-[10px] text-white/30 hover:text-white/60 tracking-wide uppercase whitespace-nowrap cursor-pointer transition-all duration-200 ease-out ${showUserMenu ? "opacity-100 translate-y-0" : "opacity-0 translate-y-[-4px] pointer-events-none"} md:pointer-events-auto md:opacity-0 md:translate-y-[-4px] md:group-hover/user:opacity-100 md:group-hover/user:translate-y-0`}
           >
             {localStorage.getItem("ryplay-username")
               ? "disconnect"
@@ -340,14 +344,14 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
+            exit={{ opacity: 0, y: -8, transition: { duration: 0.15, delay: 0 } }}
             transition={{
               delay: 1,
               type: "spring",
               stiffness: 400,
               damping: 28,
             }}
-            className="fixed top-14 right-4 sm:right-6 z-40 flex flex-col items-end gap-1.5 pointer-events-none"
+            className="fixed top-11 sm:top-14 right-4 sm:right-6 z-40 flex flex-col items-end gap-1.5 pointer-events-none"
           >
             <svg
               width="16"

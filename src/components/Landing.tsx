@@ -262,37 +262,42 @@ export default function Landing() {
             key="peek-tooltip"
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed z-[60] flex flex-col items-center justify-end pointer-events-none"
+            className="fixed z-[60] flex flex-col items-center pointer-events-none"
             style={{
               left: tooltipPos.x,
-              top: 0,
-              height: tooltipPos.y - 8,
+              top: tooltipPos.y + 20,
               transform: "translateX(-50%)",
             }}
           >
             <motion.div
-              initial={{ opacity: 0, y: -6 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ y: -6 }}
+              exit={{ y: 6 }}
               transition={{
                 y: { type: "spring", stiffness: 400, damping: 28 },
                 opacity: { duration: 0.12, ease: "easeOut" },
               }}
               className="flex flex-col items-center"
             >
-              <div className="rounded-xl bg-white/10 backdrop-blur-xl ring-1 ring-white/[0.08] border border-white/[0.06] px-4 py-3 max-w-[250px]">
-                <p className="text-sm text-white/80 leading-snug text-center">
-                  don't have an account but want to see the site in action?
-                </p>
-              </div>
               <svg
                 width="16"
                 height="10"
                 viewBox="0 0 16 10"
                 className="text-white/80"
               >
-                <path d="M8 10L0 0h16z" fill="currentColor" />
+                <path d="M8 0L0 10h16z" fill="currentColor" />
               </svg>
+              <div className="relative rounded-xl bg-white/10 backdrop-blur-xl ring-1 ring-white/[0.08] border border-white/[0.06] px-4 py-3 max-w-[250px]">
+                <button
+                  onClick={() => setShowPeekHint(false)}
+                  className="pointer-events-auto absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center rounded-full bg-[#2a2a35] ring-1 ring-white/10 text-white/50 hover:text-white/80 hover:bg-[#3a3a45] transition-colors cursor-pointer text-xs leading-none"
+                >
+                  &times;
+                </button>
+                <p className="text-sm text-white/80 leading-snug text-center">
+                  don't have an account but want to see the site in action?
+                </p>
+              </div>
             </motion.div>
           </motion.div>
         )}
