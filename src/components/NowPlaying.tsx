@@ -8,6 +8,7 @@ interface Props {
   music: MusicData | null;
   colors: PaletteColors;
   loading: boolean;
+  source?: string;
 }
 
 export default function NowPlaying({
@@ -15,6 +16,7 @@ export default function NowPlaying({
   music,
   colors,
   loading,
+  source,
 }: Props) {
   const isPlaying = music?.isPlaying ?? false;
 
@@ -49,6 +51,7 @@ export default function NowPlaying({
               trackUrl={music?.trackUrl}
               colors={colors}
               loading={loading}
+              source={source}
             />
           </div>
         </div>

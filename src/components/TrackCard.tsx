@@ -14,6 +14,7 @@ interface Props {
   trackUrl?: string;
   colors: PaletteColors;
   loading?: boolean;
+  source?: string;
 }
 
 function SkeletonLine({ w = "w-32" }: { w?: string }) {
@@ -29,6 +30,7 @@ export default function TrackCard({
   trackUrl,
   colors,
   loading,
+  source,
 }: Props) {
   const proxyUrl = artworkUrl
     ? `/api/artwork?url=${encodeURIComponent(artworkUrl)}`
@@ -124,7 +126,7 @@ export default function TrackCard({
             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55C7.79 13 6 14.79 6 17s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
             </svg>
-            Last.fm | {isPlaying ? "Now Playing" : "Last Played"}
+            {source ?? "Last.fm"} | {isPlaying ? "Now Playing" : "Last Played"}
           </div>
 
           {/* Title */}

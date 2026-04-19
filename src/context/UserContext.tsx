@@ -6,37 +6,60 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
+import type { SpotifySession } from "../types/spotify";
 
 interface UserContextType {
   username: string | null;
   setUsername: (username: string | null) => void;
   peekUsername: (username: string) => void;
+  spotifySession: SpotifySession | null;
+  setSpotifySession: (session: SpotifySession | null) => void;
 }
 
 const UserContext = createContext<UserContextType>({
   username: null,
   setUsername: () => {},
   peekUsername: () => {},
+  spotifySession: null,
+  setSpotifySession: () => {},
 });
 
 function usernameFromPath(): string | null {
   const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  if (path.startsWith("spotify")) return null;
   return path || null;
+}
+
+function isSpotifyPath(): boolean {
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  return path === "spotify";
 }
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const [username, setUsernameRaw] = useState<string | null>(() => {
-    // Priority: URL path > localStorage
     const fromUrl = usernameFromPath();
     if (fromUrl) return fromUrl;
     return localStorage.getItem("ryplay-username");
   });
 
+  const [spotifySession, setSpotifySessionRaw] =
+    useState<SpotifySession | null>(() => {
+      // If we're on /spotify, try to restore session
+      const saved = localStorage.getItem("ryplay-spotify-session");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    });
+
   // On mount, sync URL with resolved username
   useEffect(() => {
     const fromUrl = usernameFromPath();
-    if (username && !fromUrl) {
-      // Have a saved user but URL is "/", push to /{username}
+    if (username && !fromUrl && !isSpotifyPath()) {
       window.history.replaceState(null, "", `/${username}`);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -62,14 +85,38 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Navigate to a profile without saving to localStorage (guest peek)
   const peekUsername = useCallback((name: string) => {
     setUsernameRaw(name);
     window.history.pushState(null, "", `/${name}`);
   }, []);
 
+  const setSpotifySession = useCallback(
+    (session: SpotifySession | null) => {
+      setSpotifySessionRaw(session);
+      if (session) {
+        localStorage.setItem(
+          "ryplay-spotify-session",
+          JSON.stringify(session),
+        );
+        window.history.pushState(null, "", "/spotify");
+      } else {
+        localStorage.removeItem("ryplay-spotify-session");
+        window.history.pushState(null, "", "/");
+      }
+    },
+    [],
+  );
+
   return (
-    <UserContext.Provider value={{ username, setUsername, peekUsername }}>
+    <UserContext.Provider
+      value={{
+        username,
+        setUsername,
+        peekUsername,
+        spotifySession,
+        setSpotifySession,
+      }}
+    >
       {children}
     </UserContext.Provider>
   );

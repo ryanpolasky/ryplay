@@ -3,7 +3,7 @@ import time
 import hashlib
 import asyncio
 from contextlib import asynccontextmanager
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 
 import uvicorn
 from fastapi import FastAPI, Request, Query, HTTPException
@@ -32,6 +32,14 @@ artwork_cache: dict[str, tuple[str | None, float]] = {}
 stats_cache: dict[str, tuple[dict, float]] = {}
 grace_cache: dict[str, tuple[dict, float]] = {}  # user -> (last_playing_data, last_active_time)
 _spotify_token: tuple[str, float] | None = None  # (access_token, expires_at)
+
+# ─── Spotify User OAuth (separate from client-credentials artwork flow) ───
+SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI", "")
+SPOTIFY_SCOPES = "user-read-currently-playing user-read-recently-played user-top-read"
+
+# Spotify user sessions: spotify_user_id -> { access_token, refresh_token, expires_at, profile }
+spotify_sessions: dict[str, dict] = {}
+spotify_grace_cache: dict[str, tuple[dict, float]] = {}
 
 
 def _track_hash(artist: str, title: str) -> str:
@@ -750,6 +758,272 @@ async def proxy_artwork(url: str = Query(..., min_length=8, max_length=2048), re
             "Cache-Control": "public, max-age=31536000, immutable",
         },
     )
+
+
+# ─── Spotify User OAuth Endpoints ────────────────────────────────────────────
+
+async def _get_spotify_user_token(client: httpx.AsyncClient, sid: str) -> str:
+    """Get a valid Spotify user access token, refreshing if needed."""
+    session = spotify_sessions.get(sid)
+    if not session:
+        raise HTTPException(401, "Spotify session expired")
+
+    if time.time() >= session["expires_at"] - 60:
+        try:
+            resp = await client.post(
+                "https://accounts.spotify.com/api/token",
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": session["refresh_token"],
+                },
+                auth=(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET),
+                timeout=5.0,
+            )
+            data = resp.json()
+            if "access_token" not in data:
+                del spotify_sessions[sid]
+                raise HTTPException(401, "Spotify session expired")
+            session["access_token"] = data["access_token"]
+            session["expires_at"] = time.time() + data.get("expires_in", 3600)
+            if "refresh_token" in data:
+                session["refresh_token"] = data["refresh_token"]
+        except HTTPException:
+            raise
+        except Exception:
+            del spotify_sessions[sid]
+            raise HTTPException(401, "Spotify session expired")
+
+    return session["access_token"]
+
+
+def _extract_spotify_recent_tracks(items: list[dict]) -> list[dict]:
+    """Convert Spotify recently-played items to ProcessedTrack shape with streak detection."""
+    from datetime import datetime
+
+    recent: list[dict] = []
+    for item in items:
+        track = item.get("track", {})
+        title = track.get("name", "")
+        artists = track.get("artists", [])
+        artist = artists[0].get("name", "") if artists else ""
+        album_data = track.get("album", {})
+        album = album_data.get("name", "")
+        images = album_data.get("images", [])
+        artwork_url = images[0]["url"] if images else ""
+        track_url = track.get("external_urls", {}).get("spotify", "")
+
+        timestamp = 0
+        played_at = item.get("played_at", "")
+        if played_at:
+            try:
+                dt = datetime.fromisoformat(played_at.replace("Z", "+00:00"))
+                timestamp = int(dt.timestamp())
+            except Exception:
+                pass
+
+        if recent and recent[-1]["title"] == title and recent[-1]["artist"] == artist:
+            recent[-1]["streak"] += 1
+        else:
+            recent.append({
+                "title": title,
+                "artist": artist,
+                "album": album,
+                "artworkUrl": artwork_url,
+                "trackUrl": track_url,
+                "timestamp": timestamp,
+                "streak": 1,
+            })
+        if len(recent) >= 12:
+            break
+
+    for entry in recent:
+        if entry["streak"] == 1:
+            del entry["streak"]
+
+    return recent
+
+
+@app.get("/api/spotify/login")
+async def spotify_login():
+    """Return the Spotify authorization URL."""
+    if not SPOTIFY_CLIENT_ID or not SPOTIFY_REDIRECT_URI:
+        raise HTTPException(500, "Spotify not configured")
+    params = urlencode({
+        "client_id": SPOTIFY_CLIENT_ID,
+        "response_type": "code",
+        "redirect_uri": SPOTIFY_REDIRECT_URI,
+        "scope": SPOTIFY_SCOPES,
+        "show_dialog": "true",
+    })
+    return {"url": f"https://accounts.spotify.com/authorize?{params}"}
+
+
+@app.post("/api/spotify/callback")
+async def spotify_callback(request: Request):
+    """Exchange authorization code for tokens, store session, return profile."""
+    body = await request.json()
+    code = body.get("code")
+    if not code:
+        raise HTTPException(400, "Missing code")
+
+    client = request.app.state.http_client
+
+    resp = await client.post(
+        "https://accounts.spotify.com/api/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": SPOTIFY_REDIRECT_URI,
+        },
+        auth=(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET),
+        timeout=10.0,
+    )
+    token_data = resp.json()
+    if "access_token" not in token_data:
+        raise HTTPException(400, f"Spotify auth failed: {token_data.get('error', 'unknown')}")
+
+    access_token = token_data["access_token"]
+    refresh_token = token_data.get("refresh_token", "")
+    expires_in = token_data.get("expires_in", 3600)
+
+    profile_resp = await client.get(
+        "https://api.spotify.com/v1/me",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=5.0,
+    )
+    profile_data = profile_resp.json()
+    user_id = profile_data.get("id", "")
+    display_name = profile_data.get("display_name") or user_id
+    images = profile_data.get("images", [])
+    image_url = images[0]["url"] if images else None
+
+    spotify_sessions[user_id] = {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "expires_at": time.time() + expires_in,
+        "profile": {"id": user_id, "displayName": display_name, "imageUrl": image_url},
+    }
+
+    return spotify_sessions[user_id]["profile"]
+
+
+@app.get("/api/spotify/me")
+async def spotify_me(sid: str = Query(..., min_length=1), request: Request = None):
+    """Validate Spotify session and return profile."""
+    client = request.app.state.http_client
+    await _get_spotify_user_token(client, sid)
+    return spotify_sessions[sid]["profile"]
+
+
+@app.get("/api/spotify/now-playing")
+async def spotify_now_playing(sid: str = Query(..., min_length=1), request: Request = None):
+    """Currently playing + recent 50 tracks. Returns MusicData shape."""
+    client = request.app.state.http_client
+    token = await _get_spotify_user_token(client, sid)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    current_req = client.get(
+        "https://api.spotify.com/v1/me/player/currently-playing",
+        headers=headers, timeout=5.0,
+    )
+    recent_req = client.get(
+        "https://api.spotify.com/v1/me/player/recently-played",
+        params={"limit": "50"},
+        headers=headers, timeout=5.0,
+    )
+    current_resp, recent_resp = await asyncio.gather(current_req, recent_req)
+
+    recent_data = recent_resp.json() if recent_resp.status_code == 200 else {}
+    recent_tracks = _extract_spotify_recent_tracks(recent_data.get("items", []))
+
+    if current_resp.status_code == 200:
+        current_data = current_resp.json()
+        is_playing = current_data.get("is_playing", False)
+        track = current_data.get("item")
+        if track and track.get("type") == "track":
+            artists = track.get("artists", [])
+            album_data = track.get("album", {})
+            images = album_data.get("images", [])
+            result = {
+                "isPlaying": is_playing,
+                "title": track.get("name", ""),
+                "artist": artists[0].get("name", "") if artists else "",
+                "album": album_data.get("name", ""),
+                "artworkUrl": images[0]["url"] if images else "",
+                "trackUrl": track.get("external_urls", {}).get("spotify", ""),
+                "recentTracks": recent_tracks,
+            }
+            spotify_grace_cache[sid] = (result, time.time())
+            return result
+
+    grace = spotify_grace_cache.get(sid)
+    if grace and time.time() - grace[1] < GRACE_PERIOD:
+        grace[0]["recentTracks"] = recent_tracks
+        return grace[0]
+
+    if recent_tracks:
+        first = recent_tracks[0]
+        return {
+            "isPlaying": False,
+            "title": first["title"],
+            "artist": first["artist"],
+            "album": first["album"],
+            "artworkUrl": first["artworkUrl"],
+            "trackUrl": first["trackUrl"],
+            "updatedAt": first["timestamp"],
+            "recentTracks": recent_tracks,
+        }
+
+    return {"isPlaying": False, "recentTracks": []}
+
+
+@app.get("/api/spotify/top")
+async def spotify_top_items(
+    sid: str = Query(..., min_length=1),
+    type: str = Query(..., pattern="^(artists|tracks)$"),
+    time_range: str = Query("short_term", pattern="^(short_term|medium_term|long_term)$"),
+    limit: int = Query(5, ge=1, le=50),
+    request: Request = None,
+):
+    """Top artists/tracks from Spotify. Returns TopItem[] shape."""
+    client = request.app.state.http_client
+    token = await _get_spotify_user_token(client, sid)
+
+    resp = await client.get(
+        f"https://api.spotify.com/v1/me/top/{type}",
+        params={"time_range": time_range, "limit": str(limit)},
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=5.0,
+    )
+    if resp.status_code != 200:
+        return []
+
+    raw_items = resp.json().get("items", [])
+    items = []
+    for i, item in enumerate(raw_items[:limit]):
+        name = item.get("name", "")
+        url = item.get("external_urls", {}).get("spotify", "")
+        playcount = limit - i
+
+        if type == "artists":
+            images = item.get("images", [])
+            image_url = images[0]["url"] if images else ""
+            subtitle = ""
+        else:
+            artists = item.get("artists", [])
+            subtitle = artists[0].get("name", "") if artists else ""
+            album_images = item.get("album", {}).get("images", [])
+            image_url = album_images[0]["url"] if album_images else ""
+
+        items.append({
+            "name": name,
+            "subtitle": subtitle,
+            "playcount": playcount,
+            "imageUrl": image_url,
+            "url": url,
+        })
+
+    return items
 
 
 if __name__ == "__main__":

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, type FormEvent } from "react";
+import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "../context/UserContext";
 import Logo, { PASTEL_PALETTES, randomPaletteIndex } from "./Logo";
+import LastFmInfoModal from "./LastFmInfoModal";
 import { setGradientFavicon } from "../lib/favicon";
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -63,6 +64,23 @@ export default function Landing() {
   const cyclePalette = () => {
     setPaletteIdx((prev) => (prev + 1) % PASTEL_PALETTES.length);
   };
+
+  const [connectingSpotify, setConnectingSpotify] = useState(false);
+
+  const handleSpotifyConnect = useCallback(async () => {
+    setConnectingSpotify(true);
+    try {
+      const res = await fetch("/api/spotify/login");
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setConnectingSpotify(false);
+      }
+    } catch {
+      setConnectingSpotify(false);
+    }
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -168,6 +186,24 @@ export default function Landing() {
           </motion.button>
         </form>
 
+        {/* Spotify connect divider + button */}
+        <div className="flex items-center gap-3 mt-4 mb-3 max-w-xs mx-auto w-full">
+          <div className="flex-1 h-px bg-white/10" />
+          <span className="text-xs text-white/20">or</span>
+          <div className="flex-1 h-px bg-white/10" />
+        </div>
+
+        <button
+          onClick={handleSpotifyConnect}
+          disabled={connectingSpotify}
+          className="w-full max-w-xs mx-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-white/5 ring-1 ring-white/10 text-white/50 text-sm transition-all hover:bg-white/8 hover:text-white/70 cursor-pointer disabled:opacity-40"
+        >
+          <svg className="w-4 h-4 text-[#1DB954]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
+          </svg>
+          {connectingSpotify ? "connecting..." : "connect with spotify"}
+        </button>
+
         {/* Links row */}
         <div className="mt-5 flex items-center justify-center gap-2 text-xs">
           <button
@@ -262,92 +298,11 @@ export default function Landing() {
         )}
       </AnimatePresence>
 
-      {/* Info modal */}
-      <AnimatePresence>
-        {showInfo && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            onClick={() => setShowInfo(false)}
-          >
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative max-w-md w-full rounded-2xl bg-[#12121a] ring-1 ring-white/10 p-6 shadow-2xl"
-            >
-              <h2 className="text-lg font-bold text-white mb-3">
-                How it works
-              </h2>
-
-              <div className="flex flex-col gap-3 text-sm text-white/60 leading-relaxed">
-                <p>
-                  <strong className="text-white/80">Last.fm</strong> is a free
-                  service that tracks every song you listen to across all your
-                  music apps. It's been around since 2002 and works with
-                  Spotify, Apple Music, Tidal, and more.
-                </p>
-
-                <div className="rounded-xl bg-white/5 p-4 flex flex-col gap-2">
-                  <p className="text-white/70 font-medium text-xs uppercase tracking-wider">
-                    Quick setup
-                  </p>
-                  <ol className="list-decimal list-inside flex flex-col gap-1.5 text-white/50 text-[13px]">
-                    <li>
-                      Create a free account at{" "}
-                      <a
-                        href="https://www.last.fm/join"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: palette.from }}
-                        className="hover:underline"
-                      >
-                        last.fm/join
-                      </a>
-                    </li>
-                    <li>
-                      Go to{" "}
-                      <a
-                        href="https://www.last.fm/settings/applications"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ color: palette.from }}
-                        className="hover:underline"
-                      >
-                        Settings &rarr; Applications
-                      </a>{" "}
-                      and connect your music service (Spotify, Apple Music,
-                      etc.)
-                    </li>
-                    <li>Listen to some music so it starts tracking</li>
-                    <li>Come back here and enter your Last.fm username</li>
-                  </ol>
-                </div>
-
-                <p className="text-white/40 text-xs">
-                  This site only reads your public listening data - no
-                  passwords, no login required. Your Last.fm profile is public
-                  by default, so all this site needs is your username.
-                </p>
-              </div>
-
-              <button
-                onClick={() => setShowInfo(false)}
-                className="mt-5 w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-sm text-white/60 transition-colors cursor-pointer"
-              >
-                got it
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <LastFmInfoModal
+        open={showInfo}
+        onClose={() => setShowInfo(false)}
+        accentColor={palette.from}
+      />
     </div>
   );
 }
