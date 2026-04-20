@@ -552,7 +552,7 @@ async def get_top_items(
         cache_key = _track_hash(type, entry["name"] + entry["subtitle"])
         cached = _get_cached_artwork(cache_key)
         if cached is not ...:
-            entry["imageUrl"] = cached or ""
+            entry["imageUrl"] = cached[0] or ""
             return
         if entry["subtitle"]:
             query = f"{entry['subtitle']} {entry['name']}"
@@ -567,7 +567,7 @@ async def get_top_items(
                 art = await _search_itunes_entity(client, query, itunes_entity)
         else:
             # Try Spotify first (most accurate for active listeners)
-            art = await _search_spotify_track(client, entry.get("subtitle", ""), entry["name"])
+            art, _ = await _search_spotify_track(client, entry.get("subtitle", ""), entry["name"])
             # Fallback: iTunes with full "artist trackname" query
             if not art:
                 art = await _search_itunes_entity(client, query, itunes_entity)
