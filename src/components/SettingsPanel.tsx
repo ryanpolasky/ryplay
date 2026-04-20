@@ -23,7 +23,7 @@ export default function SettingsPanel({ open, onClose, colors }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-40 touch-none"
+          className="fixed inset-0 z-50 touch-none"
           onClick={onClose}
         >
           {/* Backdrop */}

@@ -878,6 +878,8 @@ async def spotify_callback(request: Request):
         auth=(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET),
         timeout=10.0,
     )
+    if resp.status_code != 200:
+        raise HTTPException(400, f"Spotify token exchange failed: {resp.status_code} {resp.text}")
     token_data = resp.json()
     if "access_token" not in token_data:
         raise HTTPException(400, f"Spotify auth failed: {token_data.get('error', 'unknown')}")
@@ -891,6 +893,8 @@ async def spotify_callback(request: Request):
         headers={"Authorization": f"Bearer {access_token}"},
         timeout=5.0,
     )
+    if profile_resp.status_code != 200:
+        raise HTTPException(502, f"Spotify profile fetch failed: {profile_resp.status_code}")
     profile_data = profile_resp.json()
     user_id = profile_data.get("id", "")
     display_name = profile_data.get("display_name") or user_id

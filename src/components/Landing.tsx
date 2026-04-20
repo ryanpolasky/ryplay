@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useUser } from "../context/UserContext";
 import Logo, { PASTEL_PALETTES, randomPaletteIndex } from "./Logo";
@@ -65,22 +65,22 @@ export default function Landing() {
     setPaletteIdx((prev) => (prev + 1) % PASTEL_PALETTES.length);
   };
 
-  const [connectingSpotify, setConnectingSpotify] = useState(false);
-
-  const handleSpotifyConnect = useCallback(async () => {
-    setConnectingSpotify(true);
-    try {
-      const res = await fetch("/api/spotify/login");
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        setConnectingSpotify(false);
-      }
-    } catch {
-      setConnectingSpotify(false);
-    }
-  }, []);
+  // Spotify connect — commented out: Spotify killed indie dev API access (250k MAU requirement)
+  // const [connectingSpotify, setConnectingSpotify] = useState(false);
+  // const handleSpotifyConnect = useCallback(async () => {
+  //   setConnectingSpotify(true);
+  //   try {
+  //     const res = await fetch("/api/spotify/login");
+  //     const data = await res.json();
+  //     if (data.url) {
+  //       window.location.href = data.url;
+  //     } else {
+  //       setConnectingSpotify(false);
+  //     }
+  //   } catch {
+  //     setConnectingSpotify(false);
+  //   }
+  // }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -186,7 +186,7 @@ export default function Landing() {
           </motion.button>
         </form>
 
-        {/* Spotify connect divider + button */}
+        {/* Spotify connect — commented out: Spotify killed indie dev API access (250k MAU requirement)
         <div className="flex items-center gap-3 mt-4 mb-3 max-w-xs mx-auto w-full">
           <div className="flex-1 h-px bg-white/10" />
           <span className="text-xs text-white/20">or</span>
@@ -203,6 +203,7 @@ export default function Landing() {
           </svg>
           {connectingSpotify ? "connecting..." : "connect with spotify"}
         </button>
+        */}
 
         {/* Links row */}
         <div className="mt-5 flex items-center justify-center gap-2 text-xs">

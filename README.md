@@ -87,6 +87,16 @@ Vite proxies `/api` to the FastAPI backend on port 8000.
 | `GET /api/artwork?url=`                   | CORS-compliant image proxy for color extraction                        |
 | `GET /api/lastfm`                         | Generic Last.fm API proxy                                              |
 
+## Spotify Lite Mode (Commented Out)
+
+A Spotify-connected lite dashboard was built but is commented out. Spotify changed their API policy to require 250k MAU for production access, effectively killing indie development. The code is all still there if they ever reverse this decision:
+
+- `src/components/SpotifyDashboard.tsx`, `SpotifyCallback.tsx`, `SpotifyTopList.tsx`, `SpotifyPeriodSelector.tsx`, `UnlockPanel.tsx`
+- `src/hooks/useSpotifyNowPlaying.ts`, `useSpotifyTopItems.ts`
+- `src/types/spotify.ts`
+- Backend endpoints in `backend/main.py` (`/api/spotify/*`)
+- Commented-out routing in `src/App.tsx` and connect button in `src/components/Landing.tsx`
+
 ## Project Structure
 
 ```
