@@ -12,13 +12,23 @@ function fetchClockData(username: string): Promise<number[][]> {
   ).then((res) => {
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     return res.json();
+  }).then((grid: number[][]) => {
+    // Treat an all-zeros grid as an error so prefetch doesn't cache a dud
+    if (!grid.some((row) => row.some((c) => c > 0))) {
+      throw new Error("empty");
+    }
+    return grid;
   });
 }
 
 /** Call early (e.g. on Dashboard mount) so data is warm by scroll-time */
 export function prefetchListeningClock(username: string) {
   if (!prefetchCache[username]) {
-    prefetchCache[username] = fetchClockData(username);
+    prefetchCache[username] = fetchClockData(username).catch(() => {
+      // Don't let a failed prefetch stick around — allow retry on mount
+      delete prefetchCache[username];
+      return Promise.reject(new Error("prefetch failed"));
+    });
   }
 }
 
@@ -35,26 +45,36 @@ export function useListeningClock(username: string) {
     setLoading(true);
 
     // Use prefetched promise if available, otherwise fetch fresh
-    // @ts-expect-error i have no idea why it doesn't like this
-    const dataPromise = prefetchCache[username]
+    const dataPromise: Promise<number[][]> = prefetchCache[username]
       ? prefetchCache[username]
       : fetchClockData(username);
     delete prefetchCache[username];
 
-    dataPromise
-      .then((grid: number[][]) => {
-        if (!cancelled) {
-          setClockData(grid);
-          setError(null);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : "Failed to fetch");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const onSuccess = (grid: number[][]) => {
+      if (!cancelled) {
+        setClockData(grid);
+        setError(null);
+        setLoading(false);
+      }
+    };
+
+    dataPromise.then(onSuccess).catch(() => {
+      // Retry once after a short delay (rate limit / transient failure)
+      if (cancelled) return;
+      setTimeout(() => {
+        if (cancelled) return;
+        fetchClockData(username)
+          .then(onSuccess)
+          .catch((err) => {
+            if (!cancelled) {
+              setError(
+                err instanceof Error ? err.message : "Failed to fetch",
+              );
+              setLoading(false);
+            }
+          });
+      }, 3000);
+    });
 
     return () => {
       cancelled = true;

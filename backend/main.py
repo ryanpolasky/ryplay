@@ -705,20 +705,39 @@ async def get_listening_clock(user: str = Query(..., min_length=1), tz: str = Qu
     cutoff = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
 
     # Fetch up to 10 pages (2000 tracks) for heavy listeners
+    # Stagger requests to avoid Last.fm rate limits
     done = False
     for page in range(1, 11):
-        resp = await client.get(LASTFM_API_URL, params={
-            "method": "user.getrecenttracks",
-            "user": user,
-            "api_key": API_KEY,
-            "format": "json",
-            "limit": "200",
-            "page": str(page),
-        })
-        data = resp.json()
-        tracks = data.get("recenttracks", {}).get("track", [])
-        if not tracks:
+        if page > 1:
+            await asyncio.sleep(0.25)
+
+        # Try the page, retry once on failure
+        data = None
+        for attempt in range(2):
+            try:
+                resp = await client.get(LASTFM_API_URL, params={
+                    "method": "user.getrecenttracks",
+                    "user": user,
+                    "api_key": API_KEY,
+                    "format": "json",
+                    "limit": "200",
+                    "page": str(page),
+                })
+                body = resp.json()
+                if body.get("recenttracks", {}).get("track"):
+                    data = body
+                    break
+                # Empty or error response — retry after a pause
+                if attempt == 0:
+                    await asyncio.sleep(1.0)
+            except Exception:
+                if attempt == 0:
+                    await asyncio.sleep(1.0)
+
+        if not data:
             break
+
+        tracks = data.get("recenttracks", {}).get("track", [])
 
         for track in tracks:
             if track.get("@attr", {}).get("nowplaying") == "true":
@@ -743,7 +762,10 @@ async def get_listening_clock(user: str = Query(..., min_length=1), tz: str = Qu
         if page >= total_pages:
             break
 
-    clock_cache[cache_key] = (grid, time.time())
+    # Only cache non-empty grids — if Last.fm was rate-limited / errored,
+    # we'd cache all-zeros for an hour and block retries
+    if any(count for row in grid for count in row):
+        clock_cache[cache_key] = (grid, time.time())
     return grid
 
 
