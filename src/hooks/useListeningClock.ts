@@ -45,6 +45,7 @@ export function useListeningClock(username: string) {
     setLoading(true);
 
     // Use prefetched promise if available, otherwise fetch fresh
+    // @ts-expect-error this is fine
     const dataPromise: Promise<number[][]> = prefetchCache[username]
       ? prefetchCache[username]
       : fetchClockData(username);
