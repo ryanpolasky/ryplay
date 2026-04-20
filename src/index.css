@@ -52,6 +52,15 @@
   }
 }
 
+@keyframes spin-record {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Global styles */
 html {
   scroll-behavior: smooth;

@@ -25,10 +25,10 @@ SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET", "")
 ARTWORK_CACHE_TTL = 6 * 60 * 60  # 6 hours
 ARTWORK_CACHE_MAX = 500
 STATS_CACHE_TTL = 60 * 60  # 1 hour
-GRACE_PERIOD = 45  # seconds
+GRACE_PERIOD = 25  # seconds — covers skips/brief pauses without feeling sluggish
 
 # In-memory caches
-artwork_cache: dict[str, tuple[str | None, float]] = {}
+artwork_cache: dict[str, tuple[str | None, int | None, float]] = {}  # track_hash -> (url, duration_ms, ts)
 stats_cache: dict[str, tuple[dict, float]] = {}
 grace_cache: dict[str, tuple[dict, float]] = {}  # user -> (last_playing_data, last_active_time)
 _spotify_token: tuple[str, float] | None = None  # (access_token, expires_at)
@@ -59,22 +59,22 @@ def _is_placeholder(url: str | None) -> bool:
     return not url or url.endswith(LASTFM_PLACEHOLDER_SUFFIX)
 
 
-def _get_cached_artwork(track_id: str) -> str | None | type[...]:
+def _get_cached_artwork(track_id: str) -> tuple[str | None, int | None] | type[...]:
     entry = artwork_cache.get(track_id)
     if entry is None:
         return ...  # sentinel: cache miss
-    url, ts = entry
+    url, duration_ms, ts = entry
     if time.time() - ts > ARTWORK_CACHE_TTL:
         del artwork_cache[track_id]
         return ...
-    return url
+    return (url, duration_ms)
 
 
-def _set_cached_artwork(track_id: str, url: str | None) -> None:
+def _set_cached_artwork(track_id: str, url: str | None, duration_ms: int | None = None) -> None:
     if len(artwork_cache) >= ARTWORK_CACHE_MAX:
-        oldest_key = min(artwork_cache, key=lambda k: artwork_cache[k][1])
+        oldest_key = min(artwork_cache, key=lambda k: artwork_cache[k][2])
         del artwork_cache[oldest_key]
-    artwork_cache[track_id] = (url, time.time())
+    artwork_cache[track_id] = (url, duration_ms, time.time())
 
 
 async def _search_itunes(client: httpx.AsyncClient, artist: str, title: str) -> str | None:
@@ -192,11 +192,11 @@ async def _search_spotify_artist(client: httpx.AsyncClient, name: str) -> str | 
     return None
 
 
-async def _search_spotify_track(client: httpx.AsyncClient, artist: str, title: str) -> str | None:
-    """Search Spotify for track album artwork."""
+async def _search_spotify_track(client: httpx.AsyncClient, artist: str, title: str) -> tuple[str | None, int | None]:
+    """Search Spotify for track album artwork and duration."""
     token = await _get_spotify_token(client)
     if not token:
-        return None
+        return None, None
     try:
         resp = await client.get(
             "https://api.spotify.com/v1/search",
@@ -207,34 +207,43 @@ async def _search_spotify_track(client: httpx.AsyncClient, artist: str, title: s
         data = resp.json()
         items = data.get("tracks", {}).get("items", [])
         if items:
-            images = items[0].get("album", {}).get("images", [])
-            if images:
-                return images[0]["url"]
+            track = items[0]
+            duration_ms = track.get("duration_ms")
+            images = track.get("album", {}).get("images", [])
+            art = images[0]["url"] if images else None
+            return art, duration_ms
     except Exception:
         pass
-    return None
+    return None, None
 
 
-async def _resolve_artwork(client: httpx.AsyncClient, artist: str, title: str, lastfm_url: str | None, album: str = "") -> str:
+async def _resolve_artwork(client: httpx.AsyncClient, artist: str, title: str, lastfm_url: str | None, album: str = "") -> tuple[str, int | None]:
     if not _is_placeholder(lastfm_url):
-        return lastfm_url or ""
+        # Last.fm has good artwork but no duration — check cache for duration from a prior Spotify hit
+        track_id = _track_hash(artist, title)
+        cached = _get_cached_artwork(track_id)
+        if cached is not ...:
+            _, cached_duration = cached
+            return lastfm_url or "", cached_duration
+        return lastfm_url or "", None
 
     track_id = _track_hash(artist, title)
     cached = _get_cached_artwork(track_id)
     if cached is not ...:
-        return cached or ""
+        url, duration_ms = cached
+        return url or "", duration_ms
 
     # Chain: Spotify track → Deezer track → iTunes song → iTunes album
     query = f"{artist} {title}"
-    art = await _search_spotify_track(client, artist, title)
+    art, duration_ms = await _search_spotify_track(client, artist, title)
     if not art:
         art = await _search_deezer_track(client, query)
     if not art:
         art = await _search_itunes(client, artist, title)
     if not art and album:
         art = await _search_itunes_entity(client, f"{artist} {album}", "album")
-    _set_cached_artwork(track_id, art)
-    return art or ""
+    _set_cached_artwork(track_id, art, duration_ms)
+    return art or "", duration_ms
 
 
 def _extract_recent_tracks(tracks: list, client: httpx.AsyncClient) -> list[dict]:
@@ -283,8 +292,8 @@ async def _resolve_artwork_batch(client: httpx.AsyncClient, tracks: list[dict]) 
     if tasks:
         results = await asyncio.gather(*(t[1] for t in tasks), return_exceptions=True)
         for (track, _), result in zip(tasks, results):
-            if isinstance(result, str):
-                track["artworkUrl"] = result
+            if isinstance(result, tuple):
+                track["artworkUrl"] = result[0]
 
 
 @asynccontextmanager
@@ -355,7 +364,17 @@ async def get_music(user: str = Query(..., min_length=1), request: Request = Non
         artist = now_playing.get("artist", {}).get("#text", "")
         album = now_playing.get("album", {}).get("#text", "")
         raw_art = _pick_image(now_playing)
-        artwork_url = await _resolve_artwork(client, artist, title, raw_art, album)
+        artwork_url, duration_ms = await _resolve_artwork(client, artist, title, raw_art, album)
+
+        # If artwork came from Last.fm (skipped Spotify), fetch duration separately
+        if duration_ms is None:
+            _, duration_ms = await _search_spotify_track(client, artist, title)
+            if duration_ms is not None:
+                # Cache duration for future hits
+                track_id = _track_hash(artist, title)
+                cached = _get_cached_artwork(track_id)
+                if cached is not ...:
+                    _set_cached_artwork(track_id, cached[0], duration_ms)
 
         result = {
             "isPlaying": True,
@@ -366,6 +385,8 @@ async def get_music(user: str = Query(..., min_length=1), request: Request = Non
             "trackUrl": now_playing.get("url", ""),
             "recentTracks": recent,
         }
+        if duration_ms:
+            result["durationMs"] = duration_ms
         grace_cache[user] = (result, time.time())
         return result
 
@@ -381,7 +402,7 @@ async def get_music(user: str = Query(..., min_length=1), request: Request = Non
         artist = last.get("artist", {}).get("#text", "")
         album = last.get("album", {}).get("#text", "")
         raw_art = _pick_image(last)
-        artwork_url = await _resolve_artwork(client, artist, title, raw_art, album)
+        artwork_url, _ = await _resolve_artwork(client, artist, title, raw_art, album)
         date = last.get("date", {})
         timestamp = int(date.get("uts", 0)) if date else 0
 

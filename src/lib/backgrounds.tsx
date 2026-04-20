@@ -608,8 +608,8 @@ export const BACKGROUNDS: BackgroundDef[] = [
     description: "Deep space. Beauty guaranteed.",
     previewStyle: (c) => ({
       background: `
-        radial-gradient(ellipse at 40% 40%, ${c.vibrant}50 0%, transparent 40%),
-        radial-gradient(ellipse at 65% 55%, ${c.dominant}40 0%, transparent 35%),
+        radial-gradient(ellipse at 40% 40%, ${c.vibrant}70 0%, transparent 40%),
+        radial-gradient(ellipse at 65% 55%, ${c.dominant}50 0%, transparent 35%),
         #050510`,
     }),
     component: ({ colors, isMobile }) => {
@@ -634,17 +634,18 @@ export const BACKGROUNDS: BackgroundDef[] = [
               />
             ))}
           </svg>
+          {/* Primary nebula cloud — vibrant-heavy */}
           <motion.div
             className="absolute will-change-transform"
             animate={{
-              background: `radial-gradient(ellipse, ${colors.vibrant}40 0%, ${colors.dominant}18 35%, transparent 65%)`,
+              background: `radial-gradient(ellipse, ${colors.vibrant}65 0%, ${colors.vibrant}30 25%, ${colors.dominant}18 45%, transparent 65%)`,
             }}
             transition={{ duration: 2 }}
             style={{
               left: "5%",
               top: "0%",
-              width: isMobile ? "80vw" : "90vh",
-              height: isMobile ? "80vw" : "90vh",
+              width: isMobile ? "85vw" : "95vh",
+              height: isMobile ? "85vw" : "95vh",
               borderRadius: "50%",
               filter: "blur(45px)",
               animation: isMobile
@@ -653,33 +654,35 @@ export const BACKGROUNDS: BackgroundDef[] = [
               opacity: 0.85,
             }}
           />
+          {/* Secondary cloud */}
           <motion.div
             className="absolute"
             animate={{
-              background: `radial-gradient(ellipse, ${colors.dominant}35 0%, ${colors.muted}18 35%, transparent 65%)`,
+              background: `radial-gradient(ellipse, ${colors.vibrant}40 0%, ${colors.dominant}25 30%, ${colors.muted}12 50%, transparent 65%)`,
             }}
             transition={{ duration: 2 }}
             style={{
               right: "-15%",
               bottom: "-15%",
-              width: isMobile ? "60vw" : "70vh",
-              height: isMobile ? "60vw" : "70vh",
+              width: isMobile ? "65vw" : "75vh",
+              height: isMobile ? "65vw" : "75vh",
               borderRadius: "50%",
               filter: "blur(55px)",
-              opacity: 0.65,
+              opacity: 0.7,
             }}
           />
+          {/* Accent pulse */}
           <motion.div
             className="absolute will-change-transform"
             animate={{
-              background: `radial-gradient(circle, ${colors.light}25 0%, transparent 55%)`,
+              background: `radial-gradient(circle, ${colors.vibrant}35 0%, ${colors.light}15 40%, transparent 55%)`,
             }}
             transition={{ duration: 2 }}
             style={{
               left: "35%",
               top: "25%",
-              width: isMobile ? "40vw" : "40vh",
-              height: isMobile ? "40vw" : "40vh",
+              width: isMobile ? "45vw" : "45vh",
+              height: isMobile ? "45vw" : "45vh",
               borderRadius: "50%",
               filter: "blur(25px)",
               animation: isMobile ? "none" : "bg-pulse 8s ease-in-out infinite",
@@ -692,6 +695,6 @@ export const BACKGROUNDS: BackgroundDef[] = [
   },
 ];
 
-export function getBackground(id: string): BackgroundDef | undefined {
-  return BACKGROUNDS.find((b) => b.id === id);
+export function getBackground(id: string): BackgroundDef {
+  return BACKGROUNDS.find((b) => b.id === id) ?? BACKGROUNDS[0];
 }

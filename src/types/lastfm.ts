@@ -103,6 +103,7 @@ export interface MusicData {
   artworkUrl?: string;
   trackUrl?: string;
   updatedAt?: number;
+  durationMs?: number;
   recentTracks: ProcessedTrack[];
 }
 

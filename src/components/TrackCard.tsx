@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import ScrollingText from "./ScrollingText";
+import TrackProgressBar from "./TrackProgressBar";
 import type { PaletteColors } from "../types/lastfm";
 
 // SVG noise overlay as a data URI
@@ -15,6 +16,7 @@ interface Props {
   colors: PaletteColors;
   loading?: boolean;
   source?: string;
+  durationMs?: number;
 }
 
 function SkeletonLine({ w = "w-32" }: { w?: string }) {
@@ -31,6 +33,7 @@ export default function TrackCard({
   colors,
   loading,
   source,
+  durationMs,
 }: Props) {
   const proxyUrl = artworkUrl
     ? `/api/artwork?url=${encodeURIComponent(artworkUrl)}`
@@ -146,6 +149,11 @@ export default function TrackCard({
             <ScrollingText className="text-sm text-white/30 mb-4">
               {album}
             </ScrollingText>
+          )}
+
+          {/* Progress bar — only when live scrobbling with known duration */}
+          {isPlaying && durationMs && (
+            <TrackProgressBar durationMs={durationMs} colors={colors} trackTitle={title} />
           )}
 
           {/* Open Track button */}

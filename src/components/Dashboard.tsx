@@ -12,7 +12,8 @@ import SettingsCog from "./SettingsCog";
 import SettingsPanel from "./SettingsPanel";
 import ErrorBoundary from "./ErrorBoundary";
 import { setGradientFavicon } from "../lib/favicon";
-import NowPlaying from "./NowPlaying";
+import NowPlaying, { SUB_PAGE_COUNT } from "./NowPlaying";
+import HorizontalDots from "./HorizontalDots";
 import RecentlyPlayed from "./RecentlyPlayed";
 import StatsPanel from "./StatsPanel";
 import TopList from "./TopList";
@@ -53,6 +54,7 @@ export default function Dashboard() {
     () => !localStorage.getItem("ryplay-username"),
   );
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [nowPlayingSubPage, setNowPlayingSubPage] = useState(0);
   const [toast, setToast] = useState<{
     title: string;
     artist: string;
@@ -256,15 +258,33 @@ export default function Dashboard() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const current = activePageRef.current;
-      if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+      if (e.key === "ArrowDown") {
         e.preventDefault();
         const next = Math.min(PANELS.length - 1, current + 1);
         scrollToPage(next);
         wakeChrome();
-      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+      } else if (e.key === "ArrowUp") {
         e.preventDefault();
         const prev = Math.max(0, current - 1);
         scrollToPage(prev);
+        wakeChrome();
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (current === 0) {
+          setNowPlayingSubPage((p) => Math.min(SUB_PAGE_COUNT - 1, p + 1));
+        } else {
+          const next = Math.min(PANELS.length - 1, current + 1);
+          scrollToPage(next);
+        }
+        wakeChrome();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (current === 0) {
+          setNowPlayingSubPage((p) => Math.max(0, p - 1));
+        } else {
+          const prev = Math.max(0, current - 1);
+          scrollToPage(prev);
+        }
         wakeChrome();
       }
     };
@@ -379,6 +399,20 @@ export default function Dashboard() {
         visible={chromeVisible}
       />
 
+      {/* Horizontal sub-page dots (Now Playing only) */}
+      <AnimatePresence>
+        {activePage === 0 && (
+          <HorizontalDots
+            count={SUB_PAGE_COUNT}
+            activeIndex={nowPlayingSubPage}
+            colors={colors}
+            onNavigate={setNowPlayingSubPage}
+            visible={chromeVisible}
+            labels={["Card", "Vinyl"]}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Settings */}
       <SettingsCog
         onClick={() => setSettingsOpen(true)}
@@ -403,6 +437,8 @@ export default function Dashboard() {
             music={music}
             colors={colors}
             loading={musicLoading}
+            activeSubPage={nowPlayingSubPage}
+            onSubPageChange={setNowPlayingSubPage}
           />
         </ErrorBoundary>
 
