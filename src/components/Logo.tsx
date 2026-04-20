@@ -1,6 +1,7 @@
 import type { PaletteColors } from "../types/lastfm";
 
 // Pastel gradient palettes — landing page picks one at random, click to cycle
+// eslint-disable-next-line react-refresh/only-export-components
 export const PASTEL_PALETTES = [
   { from: "#c4b5fd", to: "#f0abfc", name: "violet" }, // violet → fuchsia
   { from: "#93c5fd", to: "#a5f3fc", name: "sky" }, // sky → cyan
@@ -11,6 +12,7 @@ export const PASTEL_PALETTES = [
   { from: "#f9a8d4", to: "#fde68a", name: "candy" }, // pink → yellow
 ] as const;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function randomPaletteIndex(): number {
   return Math.floor(Math.random() * PASTEL_PALETTES.length);
 }

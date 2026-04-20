@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React from "react";
 import { motion } from "framer-motion";
 import type { PaletteColors } from "../types/lastfm";
@@ -232,7 +233,13 @@ export const BACKGROUNDS: BackgroundDef[] = [
         const j = Math.floor(Math.random() * (i + 1));
         [seeds[i], seeds[j]] = [seeds[j], seeds[i]];
       }
-      return ({ colors, isMobile }: { colors: PaletteColors; isMobile: boolean }) => {
+      return ({
+        colors,
+        isMobile,
+      }: {
+        colors: PaletteColors;
+        isMobile: boolean;
+      }) => {
         injectStyles();
         const count = isMobile ? 10 : MAX;
         return (

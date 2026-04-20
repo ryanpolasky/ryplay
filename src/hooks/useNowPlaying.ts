@@ -9,8 +9,14 @@ function preloadImage(src: string, timeoutMs = 8000): Promise<void> {
       img.src = "";
       reject(new Error("timeout"));
     }, timeoutMs);
-    img.onload = () => { clearTimeout(timer); resolve(); };
-    img.onerror = () => { clearTimeout(timer); reject(new Error("load failed")); };
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("load failed"));
+    };
     img.src = src;
   });
 }
@@ -33,7 +39,11 @@ export function useNowPlaying(username: string) {
       // image renders instantly instead of flashing a loading state
       const newArt = data.artworkUrl || null;
       if (newArt && newArt !== lastArtworkRef.current) {
-        try { await preloadImage(newArt); } catch { /* timeout/error — show song anyway */ }
+        try {
+          await preloadImage(newArt);
+        } catch {
+          /* timeout/error — show song anyway */
+        }
       }
       lastArtworkRef.current = newArt;
 

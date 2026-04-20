@@ -23,7 +23,7 @@ Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 ## Tech Stack
 
 | Layer            | Tech                                                              |
-|------------------|-------------------------------------------------------------------|
+| ---------------- | ----------------------------------------------------------------- |
 | Frontend         | React 19, TypeScript, Vite, Tailwind CSS v4, Framer Motion        |
 | Backend          | Python, FastAPI, httpx                                            |
 | Color Extraction | node-vibrant/browser with canvas median-cut fallback              |
@@ -78,7 +78,7 @@ Vite proxies `/api` to the FastAPI backend on port 8000.
 ## API Endpoints
 
 | Endpoint                                  | Description                                                            |
-|-------------------------------------------|------------------------------------------------------------------------|
+| ----------------------------------------- | ---------------------------------------------------------------------- |
 | `GET /api/music?user=`                    | Now playing + recent tracks with streak detection and artwork fallback |
 | `GET /api/music/stats?user=`              | Profile overview: all-time stats, #1 artist/track/album, top genre     |
 | `GET /api/top?type=&user=&period=&limit=` | Top artists/tracks/albums with cascading artwork fallback              |

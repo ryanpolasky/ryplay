@@ -22,7 +22,11 @@ export default function UnlockPanel({ colors }: Props) {
   return (
     <Panel id="unlock">
       <div className="flex-1 flex flex-col items-center justify-center max-w-lg mx-auto w-full text-center">
-        <SectionHeader label="Unlock More" colors={colors} className="mb-8 w-full" />
+        <SectionHeader
+          label="Unlock More"
+          colors={colors}
+          className="mb-8 w-full"
+        />
 
         <motion.div
           initial={{ opacity: 0, y: 12 }}

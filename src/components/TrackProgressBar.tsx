@@ -14,7 +14,11 @@ interface Props {
   trackTitle?: string;
 }
 
-export default function TrackProgressBar({ durationMs, colors, trackTitle }: Props) {
+export default function TrackProgressBar({
+  durationMs,
+  colors,
+  trackTitle,
+}: Props) {
   const barRef = useRef<HTMLDivElement>(null);
   const elapsedRef = useRef<HTMLSpanElement>(null);
   const startRef = useRef(0);
@@ -31,7 +35,9 @@ export default function TrackProgressBar({ durationMs, colors, trackTitle }: Pro
         barRef.current.style.transform = `scaleX(${progress})`;
       }
       if (elapsedRef.current) {
-        elapsedRef.current.textContent = formatTime(elapsed > durationMs ? durationMs : elapsed);
+        elapsedRef.current.textContent = formatTime(
+          elapsed > durationMs ? durationMs : elapsed,
+        );
       }
 
       if (progress < 1) {

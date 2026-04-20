@@ -100,10 +100,11 @@ export default function Dashboard() {
     );
   }, [palette, isExtracted]);
 
-  // Update tab title with current track
+  // Update tab title with current track (only while actively playing)
   useEffect(() => {
-    document.title = music?.title ? `ryplay | ${music.title}` : "ryplay";
-  }, [music?.title]);
+    document.title =
+      music?.isPlaying && music?.title ? `ryplay | ${music.title}` : "ryplay";
+  }, [music?.isPlaying, music?.title]);
 
   // Show toast when track changes while not on now-playing page
   // activePage is intentionally excluded — we only want to fire on track change, not on scroll
@@ -343,7 +344,10 @@ export default function Dashboard() {
         <div className="group/user relative">
           <button
             className="text-sm text-white/40 cursor-pointer"
-            onClick={() => { setShowUserMenu((v) => !v); setShowHint(false); }}
+            onClick={() => {
+              setShowUserMenu((v) => !v);
+              setShowHint(false);
+            }}
           >
             {username}
           </button>
@@ -364,7 +368,11 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8, transition: { duration: 0.15, delay: 0 } }}
+            exit={{
+              opacity: 0,
+              y: -8,
+              transition: { duration: 0.15, delay: 0 },
+            }}
             transition={{
               delay: 1,
               type: "spring",

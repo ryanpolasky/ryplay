@@ -22,7 +22,7 @@ function SkeletonCircle() {
 }
 
 const ARM_START = 45; // outer edge
-const ARM_END = 20;   // inner groove
+const ARM_END = 20; // inner groove
 const ARM_LIFTED = -40; // rested off to the side
 
 export default function VinylView({
@@ -85,7 +85,10 @@ export default function VinylView({
       : null;
 
     const preload = new Promise<void>((resolve) => {
-      if (!newProxy) { resolve(); return; }
+      if (!newProxy) {
+        resolve();
+        return;
+      }
       const img = new Image();
       img.onload = () => resolve();
       img.onerror = () => resolve();
@@ -103,27 +106,33 @@ export default function VinylView({
       // Phase 1: Arm lifts to rest (handled by isChanging state below)
 
       // Phase 2: After arm lifts (~450ms), flip disc to edge-on
-      timersRef.current.push(window.setTimeout(() => {
-        if (discFlipRef.current) {
-          discFlipRef.current.style.transition = "transform 0.3s ease-in";
-          discFlipRef.current.style.transform = "rotateY(90deg)";
-        }
-      }, 450));
+      timersRef.current.push(
+        window.setTimeout(() => {
+          if (discFlipRef.current) {
+            discFlipRef.current.style.transition = "transform 0.3s ease-in";
+            discFlipRef.current.style.transform = "rotateY(90deg)";
+          }
+        }, 450),
+      );
 
       // Phase 3: At edge-on (~750ms), swap artwork and flip back
-      timersRef.current.push(window.setTimeout(() => {
-        setDisplayedArt(artworkUrl);
-        if (discFlipRef.current) {
-          discFlipRef.current.style.transition = "transform 0.35s ease-out";
-          discFlipRef.current.style.transform = "rotateY(0deg)";
-        }
-      }, 750));
+      timersRef.current.push(
+        window.setTimeout(() => {
+          setDisplayedArt(artworkUrl);
+          if (discFlipRef.current) {
+            discFlipRef.current.style.transition = "transform 0.35s ease-out";
+            discFlipRef.current.style.transform = "rotateY(0deg)";
+          }
+        }, 750),
+      );
 
       // Phase 4: Animation complete (~1200ms), arm drops, RAF resumes
-      timersRef.current.push(window.setTimeout(() => {
-        setIsChanging(false);
-        startRef.current = Date.now();
-      }, 1200));
+      timersRef.current.push(
+        window.setTimeout(() => {
+          setIsChanging(false);
+          startRef.current = Date.now();
+        }, 1200),
+      );
     });
 
     return () => {
@@ -152,23 +161,29 @@ export default function VinylView({
     if (isChanging) {
       // Arm lifts to rest position
       if (armRef.current) {
-        armRef.current.style.transition = "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        armRef.current.style.transition =
+          "transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)";
         armRef.current.style.transform = `rotate(${ARM_LIFTED}deg)`;
       }
     } else if (isPlaying && durationMs) {
       // Arm drops to start, then RAF takes over
       if (armRef.current) {
-        armRef.current.style.transition = "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        armRef.current.style.transition =
+          "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)";
         armRef.current.style.transform = `rotate(${ARM_START}deg)`;
       }
       const timer = window.setTimeout(() => {
         rafRef.current = requestAnimationFrame(tickArm);
       }, 520);
-      return () => { clearTimeout(timer); cancelAnimationFrame(rafRef.current); };
+      return () => {
+        clearTimeout(timer);
+        cancelAnimationFrame(rafRef.current);
+      };
     } else {
       // Not playing — arm rests
       if (armRef.current) {
-        armRef.current.style.transition = "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        armRef.current.style.transition =
+          "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)";
         armRef.current.style.transform = `rotate(${ARM_LIFTED}deg)`;
       }
     }
@@ -220,16 +235,14 @@ export default function VinylView({
         </div>
 
         {/* Disc flip wrapper */}
-        <div
-          ref={discFlipRef}
-          style={{ transformStyle: "preserve-3d" }}
-        >
+        <div ref={discFlipRef} style={{ transformStyle: "preserve-3d" }}>
           {/* Vinyl disc */}
           <div
             className={`${discSize} rounded-full relative`}
             style={{
               animation: "spin-record 3s linear infinite",
-              animationPlayState: isPlaying && !isChanging ? "running" : "paused",
+              animationPlayState:
+                isPlaying && !isChanging ? "running" : "paused",
               willChange: "transform",
             }}
           >
@@ -237,7 +250,8 @@ export default function VinylView({
             <div
               className="absolute inset-0 rounded-full"
               style={{
-                background: "radial-gradient(circle, #1a1a1a 0%, #111 40%, #0a0a0a 100%)",
+                background:
+                  "radial-gradient(circle, #1a1a1a 0%, #111 40%, #0a0a0a 100%)",
               }}
             />
 
@@ -263,7 +277,9 @@ export default function VinylView({
 
             {/* Center label — album art */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className={`${labelSize} rounded-full overflow-hidden ring-1 ring-white/10 relative`}>
+              <div
+                className={`${labelSize} rounded-full overflow-hidden ring-1 ring-white/10 relative`}
+              >
                 <div className="w-full h-full">
                   {displayProxy ? (
                     <img

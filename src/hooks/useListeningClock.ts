@@ -9,11 +9,10 @@ function fetchClockData(username: string): Promise<number[][]> {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return fetch(
     `/api/clock?user=${encodeURIComponent(username)}&tz=${encodeURIComponent(tz)}`,
-  )
-    .then((res) => {
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      return res.json();
-    });
+  ).then((res) => {
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    return res.json();
+  });
 }
 
 /** Call early (e.g. on Dashboard mount) so data is warm by scroll-time */

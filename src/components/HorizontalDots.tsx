@@ -64,7 +64,9 @@ export default function HorizontalDots({
               <motion.button
                 key={i}
                 onClick={() => onNavigate(i)}
-                aria-label={label ? `Go to ${label}` : `Go to sub-page ${i + 1}`}
+                aria-label={
+                  label ? `Go to ${label}` : `Go to sub-page ${i + 1}`
+                }
                 className="relative flex items-center rounded-lg cursor-pointer overflow-hidden focus-visible:ring-2 focus-visible:ring-white/30 outline-none"
                 style={{ padding: "6px 8px" }}
                 animate={{

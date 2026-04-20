@@ -41,9 +41,7 @@ export default function NowPlaying({
         <EqBars animate={isPlaying} />
       </span>
       <span className={isPlaying ? "text-white/70" : "text-white/40"}>
-        {isPlaying
-          ? `${username} is listening`
-          : `${username} last listened`}
+        {isPlaying ? `${username} is listening` : `${username} last listened`}
       </span>
     </div>
   );

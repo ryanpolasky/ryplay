@@ -90,22 +90,16 @@ export function UserProvider({ children }: { children: ReactNode }) {
     window.history.pushState(null, "", `/${name}`);
   }, []);
 
-  const setSpotifySession = useCallback(
-    (session: SpotifySession | null) => {
-      setSpotifySessionRaw(session);
-      if (session) {
-        localStorage.setItem(
-          "ryplay-spotify-session",
-          JSON.stringify(session),
-        );
-        window.history.pushState(null, "", "/spotify");
-      } else {
-        localStorage.removeItem("ryplay-spotify-session");
-        window.history.pushState(null, "", "/");
-      }
-    },
-    [],
-  );
+  const setSpotifySession = useCallback((session: SpotifySession | null) => {
+    setSpotifySessionRaw(session);
+    if (session) {
+      localStorage.setItem("ryplay-spotify-session", JSON.stringify(session));
+      window.history.pushState(null, "", "/spotify");
+    } else {
+      localStorage.removeItem("ryplay-spotify-session");
+      window.history.pushState(null, "", "/");
+    }
+  }, []);
 
   return (
     <UserContext.Provider
@@ -122,4 +116,5 @@ export function UserProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useUser = () => useContext(UserContext);

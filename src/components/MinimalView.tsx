@@ -33,9 +33,7 @@ export default function MinimalView({
   return (
     <div className="flex flex-col items-center gap-3 md:gap-5 max-w-xl md:max-w-3xl w-full text-center">
       {/* Title */}
-      <ScrollingText
-        className="text-4xl md:text-7xl font-bold leading-tight w-full"
-      >
+      <ScrollingText className="text-4xl md:text-7xl font-bold leading-tight w-full">
         <span
           style={{
             color: colors.vibrant,

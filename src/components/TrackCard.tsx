@@ -74,7 +74,10 @@ export default function TrackCard({
             <motion.div
               key={proxyUrl || "placeholder"}
               className="relative"
-              style={{ transformStyle: "preserve-3d", backfaceVisibility: "hidden" }}
+              style={{
+                transformStyle: "preserve-3d",
+                backfaceVisibility: "hidden",
+              }}
               initial={{ rotateY: -90 }}
               animate={{ rotateY: 0 }}
               exit={{
@@ -153,7 +156,11 @@ export default function TrackCard({
 
           {/* Progress bar — only when live scrobbling with known duration */}
           {isPlaying && durationMs && (
-            <TrackProgressBar durationMs={durationMs} colors={colors} trackTitle={title} />
+            <TrackProgressBar
+              durationMs={durationMs}
+              colors={colors}
+              trackTitle={title}
+            />
           )}
 
           {/* Open Track button */}

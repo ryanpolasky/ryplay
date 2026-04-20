@@ -7,7 +7,12 @@ interface PanelProps {
   noPadding?: boolean;
 }
 
-export default function Panel({ id, children, className = "", noPadding }: PanelProps) {
+export default function Panel({
+  id,
+  children,
+  className = "",
+  noPadding,
+}: PanelProps) {
   return (
     <section
       id={id}

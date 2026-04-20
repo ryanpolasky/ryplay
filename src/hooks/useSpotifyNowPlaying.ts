@@ -9,8 +9,14 @@ function preloadImage(src: string, timeoutMs = 8000): Promise<void> {
       img.src = "";
       reject(new Error("timeout"));
     }, timeoutMs);
-    img.onload = () => { clearTimeout(timer); resolve(); };
-    img.onerror = () => { clearTimeout(timer); reject(new Error("load failed")); };
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("load failed"));
+    };
     img.src = src;
   });
 }
@@ -37,7 +43,11 @@ export function useSpotifyNowPlaying(sessionId: string) {
       const newArt = data.artworkUrl || null;
       if (newArt && newArt !== lastArtworkRef.current) {
         const proxyUrl = `/api/artwork?url=${encodeURIComponent(newArt)}`;
-        try { await preloadImage(proxyUrl); } catch { /* timeout/error — show song anyway */ }
+        try {
+          await preloadImage(proxyUrl);
+        } catch {
+          /* timeout/error — show song anyway */
+        }
       }
       lastArtworkRef.current = newArt;
 

@@ -61,7 +61,9 @@ function ensureFontLoaded(fontId: string) {
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia("(max-width: 639px)").matches,
+  );
 
   // Persist on change
   useEffect(() => {
@@ -82,7 +84,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // Mobile detection
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 639px)");
-    setIsMobile(mq.matches);
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
@@ -102,6 +103,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSettings() {
   return useContext(SettingsContext);
 }

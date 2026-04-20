@@ -16,6 +16,7 @@ export function useSpotifyTopItems(
 
   useEffect(() => {
     const controller = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
     const params = new URLSearchParams({

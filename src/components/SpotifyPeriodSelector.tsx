@@ -1,8 +1,5 @@
 import { motion } from "framer-motion";
-import {
-  SPOTIFY_TIME_RANGES,
-  type SpotifyTimeRange,
-} from "../types/spotify";
+import { SPOTIFY_TIME_RANGES, type SpotifyTimeRange } from "../types/spotify";
 
 interface Props {
   value: SpotifyTimeRange;
