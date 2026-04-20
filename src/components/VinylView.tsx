@@ -167,6 +167,7 @@ export default function VinylView({
       }
     } else if (isPlaying && durationMs) {
       // Arm drops to start, then RAF takes over
+      if (!startRef.current) startRef.current = Date.now();
       if (armRef.current) {
         armRef.current.style.transition =
           "transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)";
