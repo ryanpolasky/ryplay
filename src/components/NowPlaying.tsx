@@ -1,11 +1,12 @@
 import EqBars from "./EqBars";
 import TrackCard from "./TrackCard";
 import VinylView from "./VinylView";
+import MinimalView from "./MinimalView";
 import HorizontalSubPages from "./HorizontalSubPages";
 import Panel from "./Panel";
 import type { MusicData, PaletteColors } from "../types/lastfm";
 
-const SUB_PAGE_COUNT = 2;
+const SUB_PAGE_COUNT = 3;
 
 interface Props {
   username: string;
@@ -88,6 +89,22 @@ export default function NowPlaying({
               colors={colors}
               loading={loading}
               durationMs={music?.durationMs}
+            />
+          </div>
+        </div>
+
+        {/* Sub-page 2: Minimal typography view */}
+        <div className="w-full flex items-center justify-center px-4 md:px-8 lg:px-16 pt-16 pb-16 md:pt-20 md:pb-20">
+          <div className="w-full max-w-3xl flex flex-col items-center gap-6">
+            {statusBadge}
+            <MinimalView
+              isPlaying={isPlaying}
+              title={music?.title}
+              artist={music?.artist}
+              album={music?.album}
+              trackUrl={music?.trackUrl}
+              colors={colors}
+              loading={loading}
             />
           </div>
         </div>

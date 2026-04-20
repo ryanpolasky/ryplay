@@ -408,7 +408,7 @@ export default function Dashboard() {
             colors={colors}
             onNavigate={setNowPlayingSubPage}
             visible={chromeVisible}
-            labels={["Card", "Vinyl"]}
+            labels={["Card", "Vinyl", "Type"]}
           />
         )}
       </AnimatePresence>
