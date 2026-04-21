@@ -13,6 +13,7 @@ interface Props {
   colors: PaletteColors;
   loading?: boolean;
   durationMs?: number;
+  visible?: boolean;
 }
 
 function SkeletonCircle() {
@@ -35,6 +36,7 @@ export default function VinylView({
   colors,
   loading,
   durationMs,
+  visible = true,
 }: Props) {
   const discSize = "w-[220px] h-[220px] md:w-[280px] md:h-[280px]";
   const labelSize = "w-[88px] h-[88px] md:w-[112px] md:h-[112px]";
@@ -54,6 +56,8 @@ export default function VinylView({
   const armRef = useRef<HTMLDivElement>(null);
   const startRef = useRef(0);
   const rafRef = useRef(0);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible;
 
   // Track change animation
   useEffect(() => {
@@ -151,7 +155,9 @@ export default function VinylView({
     const angle = ARM_START + (ARM_END - ARM_START) * progress;
     armRef.current.style.transition = "none";
     armRef.current.style.transform = `rotate(${angle}deg)`;
-    rafRef.current = requestAnimationFrame(tickArm);
+    if (visibleRef.current) {
+      rafRef.current = requestAnimationFrame(tickArm);
+    }
   }, [isPlaying, durationMs, isChanging]);
 
   // Arm control — responds to play/pause/change states
@@ -191,6 +197,15 @@ export default function VinylView({
 
     return () => cancelAnimationFrame(rafRef.current);
   }, [tickArm, isPlaying, durationMs, isChanging]);
+
+  // Restart tonearm RAF when sub-page becomes visible
+  useEffect(() => {
+    if (!visible || !isPlaying || !durationMs || isChanging) return;
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(tickArm);
+    return () => cancelAnimationFrame(rafRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   if (loading) {
     return (

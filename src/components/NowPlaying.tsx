@@ -68,6 +68,7 @@ export default function NowPlaying({
                 loading={loading}
                 source={source}
                 durationMs={music?.durationMs}
+                visible={activeSubPage === 0}
               />
             </div>
           </div>
@@ -87,6 +88,7 @@ export default function NowPlaying({
               colors={colors}
               loading={loading}
               durationMs={music?.durationMs}
+              visible={activeSubPage === 1}
             />
           </div>
         </div>
@@ -103,6 +105,7 @@ export default function NowPlaying({
               trackUrl={music?.trackUrl}
               colors={colors}
               loading={loading}
+              visible={activeSubPage === 2}
             />
           </div>
         </div>

@@ -12,12 +12,14 @@ interface Props {
   durationMs: number;
   colors: PaletteColors;
   trackTitle?: string;
+  visible?: boolean;
 }
 
 export default function TrackProgressBar({
   durationMs,
   colors,
   trackTitle,
+  visible = true,
 }: Props) {
   const barRef = useRef<HTMLDivElement>(null);
   const elapsedRef = useRef<HTMLSpanElement>(null);
@@ -26,6 +28,15 @@ export default function TrackProgressBar({
 
   useEffect(() => {
     startRef.current = Date.now();
+  }, [durationMs, trackTitle]);
+
+  useEffect(() => {
+    if (!visible) {
+      cancelAnimationFrame(rafRef.current);
+      return;
+    }
+
+    if (!startRef.current) startRef.current = Date.now();
 
     const tick = () => {
       const elapsed = Date.now() - startRef.current;
@@ -47,7 +58,7 @@ export default function TrackProgressBar({
 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [durationMs, trackTitle]);
+  }, [durationMs, trackTitle, visible]);
 
   return (
     <div className="flex items-center gap-2 mb-4">

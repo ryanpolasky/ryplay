@@ -17,6 +17,7 @@ interface Props {
   loading?: boolean;
   source?: string;
   durationMs?: number;
+  visible?: boolean;
 }
 
 function SkeletonLine({ w = "w-32" }: { w?: string }) {
@@ -34,6 +35,7 @@ export default function TrackCard({
   loading,
   source,
   durationMs,
+  visible,
 }: Props) {
   const proxyUrl = artworkUrl
     ? `/api/artwork?url=${encodeURIComponent(artworkUrl)}`
@@ -160,6 +162,7 @@ export default function TrackCard({
               durationMs={durationMs}
               colors={colors}
               trackTitle={title}
+              visible={visible}
             />
           )}
 

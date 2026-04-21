@@ -1,3 +1,4 @@
+import { memo, useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import ScrollingText from "./ScrollingText";
 import type { PaletteColors } from "../types/lastfm";
@@ -10,16 +11,27 @@ interface Props {
   trackUrl?: string;
   colors: PaletteColors;
   loading?: boolean;
+  visible?: boolean;
 }
 
-export default function MinimalView({
+export default memo(function MinimalView({
   title,
   artist,
   album,
   trackUrl,
   colors,
   loading,
+  visible = true,
 }: Props) {
+  const [epoch, setEpoch] = useState(0);
+  const wasVisible = useRef(visible);
+
+  useEffect(() => {
+    if (visible && !wasVisible.current) {
+      setEpoch((e) => e + 1);
+    }
+    wasVisible.current = visible;
+  }, [visible]);
   if (loading) {
     return (
       <div className="flex flex-col items-center gap-4">
@@ -33,11 +45,11 @@ export default function MinimalView({
   return (
     <div className="flex flex-col items-center gap-3 md:gap-5 max-w-xl md:max-w-3xl w-full text-center">
       {/* Title */}
-      <ScrollingText className="text-4xl md:text-7xl font-bold leading-tight w-full">
+      <ScrollingText key={`title-${epoch}`} className="text-4xl md:text-7xl font-bold leading-tight w-full">
         <span
           style={{
             color: colors.vibrant,
-            textShadow: `0 0 40px ${colors.vibrant}30, 0 0 80px ${colors.vibrant}15`,
+            textShadow: `0 0 15px ${colors.vibrant}30, 0 0 30px ${colors.vibrant}15`,
           }}
         >
           {title || "Nothing playing"}
@@ -46,14 +58,14 @@ export default function MinimalView({
 
       {/* Artist */}
       {artist && (
-        <ScrollingText className="text-xl md:text-3xl font-medium text-white/50 w-full">
+        <ScrollingText key={`artist-${epoch}`} className="text-xl md:text-3xl font-medium text-white/50 w-full">
           {artist}
         </ScrollingText>
       )}
 
       {/* Album */}
       {album && (
-        <ScrollingText className="text-sm md:text-lg text-white/20 w-full">
+        <ScrollingText key={`album-${epoch}`} className="text-sm md:text-lg text-white/20 w-full">
           {album}
         </ScrollingText>
       )}
@@ -92,4 +104,4 @@ export default function MinimalView({
       )}
     </div>
   );
-}
+});
