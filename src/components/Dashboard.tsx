@@ -351,14 +351,28 @@ export default function Dashboard() {
           >
             {username}
           </button>
-          <button
-            onClick={() => setUsername(null)}
-            className={`absolute top-full right-0 mt-1 text-[10px] text-white/30 hover:text-white/60 tracking-wide uppercase whitespace-nowrap cursor-pointer transition-all duration-200 ease-out ${showUserMenu ? "opacity-100 translate-y-0" : "opacity-0 translate-y-[-4px] pointer-events-none"} md:pointer-events-auto md:opacity-0 md:translate-y-[-4px] md:group-hover/user:opacity-100 md:group-hover/user:translate-y-0`}
+          <div
+            className={`absolute top-full right-0 mt-1 flex flex-col items-end gap-0.5 transition-all duration-200 ease-out ${showUserMenu ? "opacity-100 translate-y-0" : "opacity-0 translate-y-[-4px] pointer-events-none"} md:pointer-events-auto md:opacity-0 md:translate-y-[-4px] md:group-hover/user:opacity-100 md:group-hover/user:translate-y-0`}
           >
-            {localStorage.getItem("ryplay-username")
-              ? "disconnect"
-              : "try yours"}
-          </button>
+            {localStorage.getItem("ryplay-username") && (
+              <a
+                href={`https://www.last.fm/user/${username}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-white/30 hover:text-white/60 tracking-wide uppercase whitespace-nowrap cursor-pointer"
+              >
+                view profile
+              </a>
+            )}
+            <button
+              onClick={() => setUsername(null)}
+              className="text-[10px] text-white/30 hover:text-white/60 tracking-wide uppercase whitespace-nowrap cursor-pointer"
+            >
+              {localStorage.getItem("ryplay-username")
+                ? "disconnect"
+                : "try yours"}
+            </button>
+          </div>
         </div>
       </motion.header>
 
