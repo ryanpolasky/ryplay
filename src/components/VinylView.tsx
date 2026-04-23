@@ -47,6 +47,7 @@ export default function VinylView({
   const prevTitleRef = useRef<string | undefined>(undefined);
   const discFlipRef = useRef<HTMLDivElement>(null);
   const timersRef = useRef<number[]>([]);
+  const generationRef = useRef(0);
 
   const displayProxy = displayedArt
     ? `/api/artwork?url=${encodeURIComponent(displayedArt)}`
@@ -79,6 +80,11 @@ export default function VinylView({
     // Not playing — just swap instantly
     if (!isPlaying) {
       setDisplayedArt(artworkUrl);
+      setIsChanging(false);
+      if (discFlipRef.current) {
+        discFlipRef.current.style.transition = "none";
+        discFlipRef.current.style.transform = "rotateY(0deg)";
+      }
       startRef.current = Date.now();
       return;
     }
@@ -104,7 +110,11 @@ export default function VinylView({
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
 
+    const gen = ++generationRef.current;
+
     preload.then(() => {
+      if (gen !== generationRef.current) return;
+
       setIsChanging(true);
 
       // Phase 1: Arm lifts to rest (handled by isChanging state below)
@@ -112,6 +122,7 @@ export default function VinylView({
       // Phase 2: After arm lifts (~450ms), flip disc to edge-on
       timersRef.current.push(
         window.setTimeout(() => {
+          if (gen !== generationRef.current) return;
           if (discFlipRef.current) {
             discFlipRef.current.style.transition = "transform 0.3s ease-in";
             discFlipRef.current.style.transform = "rotateY(90deg)";
@@ -122,6 +133,7 @@ export default function VinylView({
       // Phase 3: At edge-on (~750ms), swap artwork and flip back
       timersRef.current.push(
         window.setTimeout(() => {
+          if (gen !== generationRef.current) return;
           setDisplayedArt(artworkUrl);
           if (discFlipRef.current) {
             discFlipRef.current.style.transition = "transform 0.35s ease-out";
@@ -133,6 +145,7 @@ export default function VinylView({
       // Phase 4: Animation complete (~1200ms), arm drops, RAF resumes
       timersRef.current.push(
         window.setTimeout(() => {
+          if (gen !== generationRef.current) return;
           setIsChanging(false);
           startRef.current = Date.now();
         }, 1200),
@@ -140,8 +153,13 @@ export default function VinylView({
     });
 
     return () => {
+      generationRef.current++;
       timersRef.current.forEach(clearTimeout);
       timersRef.current = [];
+      if (discFlipRef.current) {
+        discFlipRef.current.style.transition = "none";
+        discFlipRef.current.style.transform = "rotateY(0deg)";
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, artworkUrl]);

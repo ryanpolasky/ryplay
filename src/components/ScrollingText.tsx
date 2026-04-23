@@ -34,26 +34,24 @@ interface Props {
 
 export default function ScrollingText({ children, className = "" }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLSpanElement>(null);
+  const measureRef = useRef<HTMLSpanElement>(null);
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [contentWidth, setContentWidth] = useState(0);
 
   useEffect(() => {
     const check = () => {
-      if (containerRef.current && textRef.current) {
-        const container = containerRef.current.offsetWidth;
-        const text = textRef.current.offsetWidth;
-        setIsOverflowing(text > container);
-        setContentWidth(text);
-      }
+      if (!containerRef.current || !measureRef.current) return;
+      const containerW = containerRef.current.clientWidth;
+      const textW = measureRef.current.getBoundingClientRect().width;
+      setIsOverflowing(textW > containerW + 1);
+      setContentWidth(textW);
     };
 
-    check();
-    const timer = setTimeout(check, 600);
+    const raf = requestAnimationFrame(check);
     const el = containerRef.current;
     if (el) observeElement(el, check);
     return () => {
-      clearTimeout(timer);
+      cancelAnimationFrame(raf);
       if (el) unobserveElement(el);
     };
   }, [children]);
@@ -61,8 +59,15 @@ export default function ScrollingText({ children, className = "" }: Props) {
   return (
     <div
       ref={containerRef}
-      className={`overflow-hidden whitespace-nowrap min-w-0 ${className}`}
+      className={`overflow-hidden whitespace-nowrap min-w-0 relative ${className}`}
     >
+      <span
+        ref={measureRef}
+        className="absolute left-0 top-0 invisible whitespace-nowrap pointer-events-none"
+        aria-hidden
+      >
+        {children}
+      </span>
       {isOverflowing ? (
         <div className="flex">
           <motion.div
@@ -78,14 +83,14 @@ export default function ScrollingText({ children, className = "" }: Props) {
             }}
             className="flex items-center"
           >
-            <span ref={textRef} className="mr-8">
+            <span className="mr-8">
               {children}
             </span>
             <span aria-hidden>{children}</span>
           </motion.div>
         </div>
       ) : (
-        <span ref={textRef} className="truncate">
+        <span className="truncate">
           {children}
         </span>
       )}
