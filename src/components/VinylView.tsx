@@ -232,6 +232,15 @@ export default function VinylView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
+  // Detect pending track change during render so JSX sees it before effects run
+  if (
+    prevTitleRef.current !== undefined &&
+    prevTitleRef.current !== title &&
+    isPlaying
+  ) {
+    changingRef.current = true;
+  }
+
   if (loading) {
     return (
       <div className="flex flex-col items-center gap-6">
@@ -283,7 +292,9 @@ export default function VinylView({
             style={{
               animation: "spin-record 3s linear infinite",
               animationPlayState:
-                isPlaying && !isChanging ? "running" : "paused",
+                isPlaying && !isChanging && !changingRef.current
+                  ? "running"
+                  : "paused",
               willChange: "transform",
             }}
           >
