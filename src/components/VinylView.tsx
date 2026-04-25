@@ -44,6 +44,7 @@ export default function VinylView({
   // Displayed artwork — lags behind prop during flip animation
   const [displayedArt, setDisplayedArt] = useState(artworkUrl);
   const [isChanging, setIsChanging] = useState(false);
+  const changingRef = useRef(false);
   const prevTitleRef = useRef<string | undefined>(undefined);
   const discFlipRef = useRef<HTMLDivElement>(null);
   const timersRef = useRef<number[]>([]);
@@ -80,6 +81,7 @@ export default function VinylView({
     // Not playing — just swap instantly
     if (!isPlaying) {
       setDisplayedArt(artworkUrl);
+      changingRef.current = false;
       setIsChanging(false);
       if (discFlipRef.current) {
         discFlipRef.current.style.transition = "none";
@@ -111,6 +113,9 @@ export default function VinylView({
     timersRef.current = [];
 
     const gen = ++generationRef.current;
+
+    // Signal arm control immediately — before preload resolves
+    changingRef.current = true;
 
     preload.then(() => {
       if (gen !== generationRef.current) return;
@@ -146,6 +151,7 @@ export default function VinylView({
       timersRef.current.push(
         window.setTimeout(() => {
           if (gen !== generationRef.current) return;
+          changingRef.current = false;
           setIsChanging(false);
           startRef.current = Date.now();
         }, 1200),
@@ -154,6 +160,7 @@ export default function VinylView({
 
     return () => {
       generationRef.current++;
+      changingRef.current = false;
       timersRef.current.forEach(clearTimeout);
       timersRef.current = [];
       if (discFlipRef.current) {
@@ -167,7 +174,7 @@ export default function VinylView({
   // Tonearm tick — only runs when playing + not changing
   const tickArm = useCallback(() => {
     if (!armRef.current) return;
-    if (!isPlaying || !durationMs || isChanging) return;
+    if (!isPlaying || !durationMs || isChanging || changingRef.current) return;
     const elapsed = Date.now() - startRef.current;
     const progress = Math.min(elapsed / durationMs, 1);
     const angle = ARM_START + (ARM_END - ARM_START) * progress;
@@ -182,7 +189,7 @@ export default function VinylView({
   useEffect(() => {
     cancelAnimationFrame(rafRef.current);
 
-    if (isChanging) {
+    if (isChanging || changingRef.current) {
       // Arm lifts to rest position
       if (armRef.current) {
         armRef.current.style.transition =
