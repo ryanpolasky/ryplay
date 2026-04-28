@@ -8,6 +8,7 @@ export default function SpotifyCallback() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get("code");
+    const state = params.get("state");
 
     if (!code) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -20,7 +21,7 @@ export default function SpotifyCallback() {
     fetch("/api/spotify/callback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({ code, state }),
     })
       .then((res) => {
         if (!res.ok) throw new Error(`Server error: ${res.status}`);

@@ -24,15 +24,18 @@ const UserContext = createContext<UserContextType>({
   setSpotifySession: () => {},
 });
 
-function usernameFromPath(): string | null {
-  const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
-  if (path.startsWith("spotify")) return null;
-  return path || null;
-}
-
 function isSpotifyPath(): boolean {
   const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
-  return path === "spotify";
+  return path === "spotify" || path.startsWith("spotify/");
+}
+
+function usernameFromPath(): string | null {
+  if (isSpotifyPath()) return null;
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  // Reject anything that looks like a sub-path (Last.fm usernames don't
+  // contain slashes), so /foo/bar doesn't get treated as a username.
+  if (path.includes("/")) return null;
+  return path || null;
 }
 
 export function UserProvider({ children }: { children: ReactNode }) {

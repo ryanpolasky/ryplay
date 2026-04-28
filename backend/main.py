@@ -2,6 +2,9 @@ import os
 import time
 import hashlib
 import asyncio
+import ipaddress
+import secrets
+import socket
 from contextlib import asynccontextmanager
 from urllib.parse import urlparse, urlencode
 
@@ -22,13 +25,47 @@ LASTFM_PLACEHOLDER_SUFFIX = "2a96cbd8b46e442fc41c2b86b821562f.png"
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID", "")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET", "")
 
+# CORS allowlist — comma-separated origins, or "*" for any (default keeps prior behavior)
+_raw_origins = os.getenv("RYPLAY_ALLOWED_ORIGINS", "*").strip()
+ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()] or ["*"]
+
 ARTWORK_CACHE_TTL = 6 * 60 * 60  # 6 hours
 ARTWORK_CACHE_MAX = 500
 STATS_CACHE_TTL = 60 * 60  # 1 hour
+STATS_CACHE_MAX = 500
+GRACE_CACHE_MAX = 500
+SPOTIFY_SESSION_MAX = 500
+SPOTIFY_STATE_TTL = 10 * 60  # 10 minutes — OAuth state lifetime
 GRACE_PERIOD = 25  # seconds — covers skips/brief pauses without feeling sluggish
+
+# Allowlist of Last.fm read methods exposed via /api/lastfm. Mutating methods
+# require a session key (which we never issue), but we still want to limit the
+# attack surface and protect our shared API key from abuse.
+LASTFM_ALLOWED_METHODS = frozenset({
+    "user.getinfo",
+    "user.getrecenttracks",
+    "user.gettopartists",
+    "user.gettoptracks",
+    "user.gettopalbums",
+    "user.gettoptags",
+    "user.getlovedtracks",
+    "user.getfriends",
+    "artist.getinfo",
+    "artist.gettoptags",
+    "artist.gettoptracks",
+    "artist.gettopalbums",
+    "album.getinfo",
+    "album.gettoptags",
+    "track.getinfo",
+    "track.gettoptags",
+    "tag.gettopartists",
+    "tag.gettoptracks",
+})
 
 # In-memory caches
 artwork_cache: dict[str, tuple[str | None, int | None, float]] = {}  # track_hash -> (url, duration_ms, ts)
+genre_name_cache: dict[str, tuple[str | None, float]] = {}  # artist_name -> (genre_or_none, ts)
+GENRE_NAME_CACHE_MAX = 500
 stats_cache: dict[str, tuple[dict, float]] = {}
 grace_cache: dict[str, tuple[dict, float]] = {}  # user -> (last_playing_data, last_active_time)
 _spotify_token: tuple[str, float] | None = None  # (access_token, expires_at)
@@ -37,13 +74,24 @@ _spotify_token: tuple[str, float] | None = None  # (access_token, expires_at)
 SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI", "")
 SPOTIFY_SCOPES = "user-read-currently-playing user-read-recently-played user-top-read"
 
-# Spotify user sessions: spotify_user_id -> { access_token, refresh_token, expires_at, profile }
+# Spotify sessions keyed by an opaque random session ID, NOT the public Spotify
+# user ID — using the user ID as the session key would let any visitor access
+# another user's tokens by guessing/looking up their public Spotify handle.
 spotify_sessions: dict[str, dict] = {}
 spotify_grace_cache: dict[str, tuple[dict, float]] = {}
+spotify_oauth_states: dict[str, float] = {}  # state_token -> created_at
 
 
 def _track_hash(artist: str, title: str) -> str:
     return hashlib.md5(f"{artist}|{title}".encode()).hexdigest()
+
+
+def _evict_oldest(cache: dict, max_size: int, ts_index: int) -> None:
+    """O(n) eviction of the oldest entry. ts_index is the position of the
+    timestamp inside each cache value tuple."""
+    if len(cache) >= max_size:
+        oldest = min(cache, key=lambda k: cache[k][ts_index])
+        del cache[oldest]
 
 
 def _pick_image(track: dict) -> str | None:
@@ -71,10 +119,26 @@ def _get_cached_artwork(track_id: str) -> tuple[str | None, int | None] | type[.
 
 
 def _set_cached_artwork(track_id: str, url: str | None, duration_ms: int | None = None) -> None:
-    if len(artwork_cache) >= ARTWORK_CACHE_MAX:
-        oldest_key = min(artwork_cache, key=lambda k: artwork_cache[k][2])
-        del artwork_cache[oldest_key]
+    _evict_oldest(artwork_cache, ARTWORK_CACHE_MAX, 2)
     artwork_cache[track_id] = (url, duration_ms, time.time())
+
+
+def _get_cached_genre(name: str) -> tuple[str | None] | type[...]:
+    """Return ``(genre_or_none,)`` on hit (so ``None`` cache entries are
+    distinguishable from misses), or ``...`` for a miss/expired entry."""
+    entry = genre_name_cache.get(name)
+    if entry is None:
+        return ...
+    val, ts = entry
+    if time.time() - ts > ARTWORK_CACHE_TTL:
+        del genre_name_cache[name]
+        return ...
+    return (val,)
+
+
+def _set_cached_genre(name: str, value: str | None) -> None:
+    _evict_oldest(genre_name_cache, GENRE_NAME_CACHE_MAX, 1)
+    genre_name_cache[name] = (value, time.time())
 
 
 async def _search_itunes(client: httpx.AsyncClient, artist: str, title: str) -> str | None:
@@ -307,20 +371,31 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
 
 @app.get("/api/lastfm")
 async def lastfm_proxy(request: Request):
-    """Generic Last.fm API proxy — used for top artists/tracks/albums by period, tags, etc."""
+    """Last.fm API proxy restricted to a known set of read methods.
+
+    The shared API key is injected server-side; the frontend never sees it.
+    The method allowlist limits abuse of our shared rate-limit budget.
+    """
     params = dict(request.query_params)
+    method = (params.get("method") or "").lower()
+    if method not in LASTFM_ALLOWED_METHODS:
+        raise HTTPException(400, "Method not allowed")
+    params["method"] = method
     params["api_key"] = API_KEY
     params["format"] = "json"
-    resp = await request.app.state.http_client.get(LASTFM_API_URL, params=params)
-    return resp.json()
+    try:
+        resp = await request.app.state.http_client.get(LASTFM_API_URL, params=params)
+        return resp.json()
+    except (httpx.RequestError, ValueError):
+        raise HTTPException(502, "Upstream error")
 
 
 @app.get("/api/music")
@@ -387,6 +462,7 @@ async def get_music(user: str = Query(..., min_length=1), request: Request = Non
         }
         if duration_ms:
             result["durationMs"] = duration_ms
+        _evict_oldest(grace_cache, GRACE_CACHE_MAX, 1)
         grace_cache[user] = (result, time.time())
         return result
 
@@ -426,6 +502,7 @@ async def get_music_stats(user: str = Query(..., min_length=1), request: Request
     cached = stats_cache.get(user)
     if cached and time.time() - cached[1] < STATS_CACHE_TTL:
         return cached[0]
+    _evict_oldest(stats_cache, STATS_CACHE_MAX, 1)
 
     client = request.app.state.http_client
 
@@ -591,11 +668,16 @@ GENRE_CACHE_TTL = 60 * 60  # 1 hour
 
 
 async def _search_itunes_artist_genre(client: httpx.AsyncClient, artist: str) -> str | None:
-    """Get an artist's primary genre from iTunes/Apple Music."""
-    cache_key = _track_hash("genre", artist)
-    cached = _get_cached_artwork(cache_key)  # reuse artwork cache for genre strings
+    """Get an artist's primary genre from iTunes/Apple Music.
+
+    Uses a dedicated genre cache. (Earlier versions piggy-backed on the
+    artwork cache, which returns ``(url, duration)`` tuples — that caused
+    ``top_genre`` to become a tuple on cache hits and crashed downstream
+    code that called ``.split("/")`` on the result.)
+    """
+    cached = _get_cached_genre(artist)
     if cached is not ...:
-        return cached
+        return cached[0]
 
     try:
         resp = await client.get(
@@ -607,11 +689,11 @@ async def _search_itunes_artist_genre(client: httpx.AsyncClient, artist: str) ->
         results = data.get("results", [])
         if results:
             genre = results[0].get("primaryGenreName")
-            _set_cached_artwork(cache_key, genre)
+            _set_cached_genre(artist, genre)
             return genre
     except Exception:
         pass
-    _set_cached_artwork(cache_key, None)
+    _set_cached_genre(artist, None)
     return None
 
 
@@ -634,6 +716,7 @@ async def get_genres(
     cached = genre_cache.get(cache_key)
     if cached and time.time() - cached[1] < GENRE_CACHE_TTL:
         return cached[0]
+    _evict_oldest(genre_cache, STATS_CACHE_MAX, 1)
 
     client = request.app.state.http_client
 
@@ -765,36 +848,112 @@ async def get_listening_clock(user: str = Query(..., min_length=1), tz: str = Qu
     # Only cache non-empty grids — if Last.fm was rate-limited / errored,
     # we'd cache all-zeros for an hour and block retries
     if any(count for row in grid for count in row):
+        _evict_oldest(clock_cache, STATS_CACHE_MAX, 1)
         clock_cache[cache_key] = (grid, time.time())
     return grid
 
 
+_BLOCKED_NETWORKS = (
+    ipaddress.ip_network("0.0.0.0/8"),
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("100.64.0.0/10"),  # CGNAT
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),  # link-local
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.0.0.0/24"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("198.18.0.0/15"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),  # ULA
+    ipaddress.ip_network("fe80::/10"),  # link-local v6
+)
+
+
+def _ip_blocked(ip: ipaddress._BaseAddress) -> bool:
+    if ip.is_multicast or ip.is_reserved or ip.is_unspecified:
+        return True
+    return any(ip in net for net in _BLOCKED_NETWORKS)
+
+
+async def _host_is_blocked(host: str) -> bool:
+    """Resolve ``host`` and reject if any candidate IP is private/loopback/etc.
+
+    Mitigates SSRF — without this, an attacker can ask the proxy to fetch
+    internal-network resources by passing e.g. ``http://10.0.0.1/`` or a
+    public hostname whose A record resolves to a private address.
+    """
+    if not host:
+        return True
+    # Literal IP — check directly without DNS
+    try:
+        return _ip_blocked(ipaddress.ip_address(host.strip("[]")))
+    except ValueError:
+        pass
+    loop = asyncio.get_running_loop()
+    try:
+        infos = await loop.getaddrinfo(host, None)
+    except (socket.gaierror, OSError):
+        return True  # unresolvable — block
+    for info in infos:
+        addr = info[4][0]
+        try:
+            ip = ipaddress.ip_address(addr.split("%", 1)[0])  # strip v6 zone-id
+        except ValueError:
+            return True
+        if _ip_blocked(ip):
+            return True
+    return False
+
+
+ARTWORK_MAX_BYTES = 10 * 1024 * 1024  # 10 MB ceiling on a single image fetch
+
+
 @app.get("/api/artwork")
 async def proxy_artwork(url: str = Query(..., min_length=8, max_length=2048), request: Request = None):
-    """CORS-compliant image proxy for Vibrant.js color extraction."""
+    """CORS-compliant image proxy for Vibrant.js color extraction.
+
+    Rejects non-http(s) schemes, hosts that resolve to private/loopback IPs,
+    redirects (which could bypass host validation), non-image content types,
+    and responses larger than ``ARTWORK_MAX_BYTES``.
+    """
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         raise HTTPException(400, "Invalid URL scheme")
     host = (parsed.hostname or "").lower()
-    if host in ("localhost", "127.0.0.1", "::1"):
-        raise HTTPException(400, "Refusing localhost")
+    if await _host_is_blocked(host):
+        raise HTTPException(400, "Blocked host")
 
     client = request.app.state.http_client
     try:
-        resp = await client.get(url, headers={
-            "User-Agent": "ryplay/1.0",
-            "Accept": "image/*",
-        }, follow_redirects=True)
+        async with client.stream(
+            "GET", url,
+            headers={"User-Agent": "ryplay/1.0", "Accept": "image/*"},
+            # follow_redirects disabled: a redirect could point at a private
+            # IP and bypass the host check above. The image CDNs we hit
+            # (Spotify, Deezer, iTunes, Last.fm) all serve images directly.
+            follow_redirects=False,
+        ) as resp:
+            if resp.status_code >= 400:
+                raise HTTPException(502, "Upstream error")
+            if resp.status_code in (301, 302, 303, 307, 308):
+                raise HTTPException(502, "Upstream redirect not allowed")
+            content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0].strip().lower()
+            if not content_type.startswith("image/"):
+                raise HTTPException(415, "Not an image")
+            declared = resp.headers.get("content-length")
+            if declared and declared.isdigit() and int(declared) > ARTWORK_MAX_BYTES:
+                raise HTTPException(413, "Image too large")
+            buf = bytearray()
+            async for chunk in resp.aiter_bytes():
+                buf.extend(chunk)
+                if len(buf) > ARTWORK_MAX_BYTES:
+                    raise HTTPException(413, "Image too large")
+            content = bytes(buf)
     except httpx.RequestError:
         raise HTTPException(404, "Image not found")
 
-    if resp.status_code >= 400:
-        raise HTTPException(502, "Upstream error")
-
-    content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0]
-
     return Response(
-        content=resp.content,
+        content=content,
         media_type=content_type,
         headers={
             "Access-Control-Allow-Origin": "*",
@@ -886,16 +1045,27 @@ def _extract_spotify_recent_tracks(items: list[dict]) -> list[dict]:
     return recent
 
 
+def _purge_expired_oauth_states() -> None:
+    now = time.time()
+    expired = [s for s, ts in spotify_oauth_states.items() if now - ts > SPOTIFY_STATE_TTL]
+    for s in expired:
+        spotify_oauth_states.pop(s, None)
+
+
 @app.get("/api/spotify/login")
 async def spotify_login():
-    """Return the Spotify authorization URL."""
+    """Return the Spotify authorization URL with a CSRF ``state`` token."""
     if not SPOTIFY_CLIENT_ID or not SPOTIFY_REDIRECT_URI:
         raise HTTPException(500, "Spotify not configured")
+    _purge_expired_oauth_states()
+    state = secrets.token_urlsafe(32)
+    spotify_oauth_states[state] = time.time()
     params = urlencode({
         "client_id": SPOTIFY_CLIENT_ID,
         "response_type": "code",
         "redirect_uri": SPOTIFY_REDIRECT_URI,
         "scope": SPOTIFY_SCOPES,
+        "state": state,
         "show_dialog": "true",
     })
     return {"url": f"https://accounts.spotify.com/authorize?{params}"}
@@ -903,11 +1073,20 @@ async def spotify_login():
 
 @app.post("/api/spotify/callback")
 async def spotify_callback(request: Request):
-    """Exchange authorization code for tokens, store session, return profile."""
+    """Exchange authorization code for tokens, store session, return profile.
+
+    Validates the OAuth ``state`` (CSRF protection) and returns an opaque
+    random session ID — *not* the public Spotify user ID — so that knowing a
+    user's Spotify handle doesn't grant access to their session/tokens.
+    """
     body = await request.json()
     code = body.get("code")
+    state = body.get("state")
     if not code:
         raise HTTPException(400, "Missing code")
+    _purge_expired_oauth_states()
+    if not state or spotify_oauth_states.pop(state, None) is None:
+        raise HTTPException(400, "Invalid or expired state")
 
     client = request.app.state.http_client
 
@@ -922,10 +1101,11 @@ async def spotify_callback(request: Request):
         timeout=10.0,
     )
     if resp.status_code != 200:
-        raise HTTPException(400, f"Spotify token exchange failed: {resp.status_code} {resp.text}")
+        # Don't echo upstream body — may include sensitive details
+        raise HTTPException(400, "Spotify token exchange failed")
     token_data = resp.json()
     if "access_token" not in token_data:
-        raise HTTPException(400, f"Spotify auth failed: {token_data.get('error', 'unknown')}")
+        raise HTTPException(400, "Spotify auth failed")
 
     access_token = token_data["access_token"]
     refresh_token = token_data.get("refresh_token", "")
@@ -937,21 +1117,30 @@ async def spotify_callback(request: Request):
         timeout=5.0,
     )
     if profile_resp.status_code != 200:
-        raise HTTPException(502, f"Spotify profile fetch failed: {profile_resp.status_code}")
+        raise HTTPException(502, "Spotify profile fetch failed")
     profile_data = profile_resp.json()
     user_id = profile_data.get("id", "")
     display_name = profile_data.get("display_name") or user_id
     images = profile_data.get("images", [])
     image_url = images[0]["url"] if images else None
 
-    spotify_sessions[user_id] = {
+    sid = secrets.token_urlsafe(32)
+    _evict_oldest_session()
+    spotify_sessions[sid] = {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "expires_at": time.time() + expires_in,
-        "profile": {"id": user_id, "displayName": display_name, "imageUrl": image_url},
+        "profile": {"id": sid, "displayName": display_name, "imageUrl": image_url},
     }
 
-    return spotify_sessions[user_id]["profile"]
+    return spotify_sessions[sid]["profile"]
+
+
+def _evict_oldest_session() -> None:
+    """Drop the session whose access token will expire first."""
+    if len(spotify_sessions) >= SPOTIFY_SESSION_MAX:
+        oldest = min(spotify_sessions, key=lambda k: spotify_sessions[k].get("expires_at", 0))
+        del spotify_sessions[oldest]
 
 
 @app.get("/api/spotify/me")
@@ -1000,6 +1189,7 @@ async def spotify_now_playing(sid: str = Query(..., min_length=1), request: Requ
                 "trackUrl": track.get("external_urls", {}).get("spotify", ""),
                 "recentTracks": recent_tracks,
             }
+            _evict_oldest(spotify_grace_cache, GRACE_CACHE_MAX, 1)
             spotify_grace_cache[sid] = (result, time.time())
             return result
 
