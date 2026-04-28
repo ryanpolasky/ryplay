@@ -2,48 +2,145 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.png" />
-
-    <!-- viewport -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <!-- primary SEO -->
-    <title>ryplay - Your music, visualized</title>
+    <title>ryplay - Your Music, Visualized | Real-time Last.fm Dashboard</title>
     <meta
       name="description"
       content="A real-time music dashboard powered by Last.fm. Visualize your listening habits, track streaks, explore stats, and share your music taste."
     />
-    <meta name="theme-color" content="#000000" />
+    <meta
+      name="keywords"
+      content="ryplay, last.fm dashboard, music stats, listening visualization, music tracker, scrobble visualizer, music taste, shareable stats card, Ryan Polasky"
+    />
+    <meta name="author" content="Ryan Polasky" />
+    <meta name="creator" content="Ryan Polasky" />
+    <meta name="publisher" content="Ryan Polasky" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
 
-    <!-- Open Graph (Discord, iMessage, LinkedIn, etc.) -->
-    <meta property="og:title" content="ryplay - Your music, visualized" />
+    <link rel="canonical" href="https://ryplay.dev/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ryplay" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://ryplay.dev/" />
+    <meta property="og:title" content="ryplay - Your Music, Visualized" />
     <meta
       property="og:description"
       content="Live music stats, listening history, streaks, and shareable visuals powered by Last.fm."
     />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://ryplay.dev/" />
     <meta property="og:image" content="https://ryplay.dev/og.webp" />
+    <meta property="og:image:type" content="image/webp" />
+    <meta property="og:image:width" content="1300" />
+    <meta property="og:image:height" content="781" />
+    <meta property="og:image:alt" content="ryplay dashboard preview: now-playing track, recent history, top artists, and listening clock visualization." />
 
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="ryplay - Your music, visualized" />
+    <meta name="twitter:title" content="ryplay - Your Music, Visualized" />
     <meta
       name="twitter:description"
-      content="Visualize your music taste with real-time stats and shareable cards."
+      content="Visualize your music taste with real-time stats and shareable cards. Powered by Last.fm."
     />
     <meta name="twitter:image" content="https://ryplay.dev/og.webp" />
+    <meta name="twitter:image:alt" content="ryplay dashboard preview: now-playing track, recent history, top artists, and listening clock visualization." />
 
-    <!-- fonts -->
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="application-name" content="ryplay" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ryplay" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Person",
+          "@id": "https://ryanpolasky.com/#person",
+          "name": "Ryan Polasky",
+          "url": "https://ryanpolasky.com/",
+          "sameAs": [
+            "https://www.linkedin.com/in/ryan-polasky/",
+            "https://github.com/ryanpolasky"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://ryplay.dev/#website",
+          "url": "https://ryplay.dev/",
+          "name": "ryplay",
+          "description": "A real-time music dashboard powered by Last.fm.",
+          "inLanguage": "en",
+          "creator": { "@id": "https://ryanpolasky.com/#person" },
+          "author": { "@id": "https://ryanpolasky.com/#person" },
+          "publisher": { "@id": "https://ryanpolasky.com/#person" }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "https://ryplay.dev/#app",
+          "name": "ryplay",
+          "alternateName": "ryplay - Your Music, Visualized",
+          "url": "https://ryplay.dev/",
+          "description": "A real-time music dashboard powered by Last.fm. Visualize your listening habits, track streaks, explore stats, and share your music taste.",
+          "image": "https://ryplay.dev/og.webp",
+          "applicationCategory": "MultimediaApplication",
+          "applicationSubCategory": "Music Visualization",
+          "operatingSystem": "Any",
+          "browserRequirements": "Requires JavaScript and a modern web browser.",
+          "inLanguage": "en",
+          "isPartOf": { "@id": "https://ryplay.dev/#website" },
+          "creator": { "@id": "https://ryanpolasky.com/#person" },
+          "author": { "@id": "https://ryanpolasky.com/#person" },
+          "publisher": { "@id": "https://ryanpolasky.com/#person" },
+          "featureList": [
+            "Live now-playing track display with album art",
+            "Listening history with streak detection",
+            "Profile stats: scrobbles, artists, tracks, albums",
+            "Top artists, tracks, and albums by time period",
+            "Genre breakdown",
+            "7-day listening clock heatmap",
+            "Shareable 1080x1350 stats card",
+            "Dynamic theming from album art"
+          ],
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD",
+            "availability": "https://schema.org/InStock"
+          }
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <noscript>
+        <h1>ryplay - Your Music, Visualized</h1>
+        <p>
+          ryplay is a real-time music dashboard powered by Last.fm. It
+          visualizes your listening habits, tracks streaks, explores stats,
+          and lets you share your music taste with shareable stats cards.
+        </p>
+        <p>
+          This dashboard requires JavaScript to play. Please enable it in
+          your browser to view your music stats.
+        </p>
+      </noscript>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
