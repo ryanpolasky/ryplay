@@ -1,33 +1,27 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Panel from "./Panel";
-import SpotifyPeriodSelector from "./SpotifyPeriodSelector";
+import PeriodSelector from "./PeriodSelector";
 import ScrollingText from "./ScrollingText";
 import SectionHeader from "./SectionHeader";
 import Spinner from "./Spinner";
-import { useSpotifyTopItems } from "../hooks/useSpotifyTopItems";
-import type { PaletteColors } from "../types/lastfm";
-import type { SpotifyTimeRange } from "../types/spotify";
+import { useTopItems } from "../hooks/useTopItems";
+import type { Period, PaletteColors } from "../types/lastfm";
+import { artworkProxyUrl } from "../lib/artworkLoader";
 
-type ItemType = "artists" | "tracks";
+type ItemType = "artists" | "tracks" | "albums";
 
 interface Props {
-  sessionId: string;
+  username: string;
   type: ItemType;
   title: string;
   id: string;
   colors: PaletteColors;
 }
 
-export default function SpotifyTopList({
-  sessionId,
-  type,
-  title,
-  id,
-  colors,
-}: Props) {
-  const [timeRange, setTimeRange] = useState<SpotifyTimeRange>("short_term");
-  const { items, loading } = useSpotifyTopItems(sessionId, type, timeRange, 5);
+export default function TopList({ username, type, title, id, colors }: Props) {
+  const [period, setPeriod] = useState<Period>("7day");
+  const { items, loading } = useTopItems(username, type, period, 5);
   const maxCount = items.length > 0 ? items[0].playcount : 1;
   const vibrant = colors.vibrant;
 
@@ -37,11 +31,7 @@ export default function SpotifyTopList({
         <SectionHeader label={title} colors={colors} />
 
         <div className="flex justify-center sm:justify-end mb-6">
-          <SpotifyPeriodSelector
-            value={timeRange}
-            onChange={setTimeRange}
-            id={id}
-          />
+          <PeriodSelector value={period} onChange={setPeriod} id={id} />
         </div>
 
         {loading ? (
@@ -54,9 +44,7 @@ export default function SpotifyTopList({
           <div className="flex flex-col gap-1.5">
             {items.map((item, i) => {
               const pct = (item.playcount / maxCount) * 100;
-              const proxyUrl = item.imageUrl
-                ? `/api/artwork?url=${encodeURIComponent(item.imageUrl)}`
-                : null;
+              const proxyUrl = artworkProxyUrl(item.imageUrl);
 
               return (
                 <motion.a
@@ -108,6 +96,9 @@ export default function SpotifyTopList({
                           transition={{ duration: 0.5, delay: i * 0.04 }}
                         />
                       </div>
+                      <span className="text-[10px] font-mono text-white/30 tabular-nums shrink-0">
+                        {item.playcount.toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 </motion.a>

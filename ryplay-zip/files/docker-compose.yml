@@ -1,0 +1,48 @@
+# Local dev / single-host production deploy.
+#
+#   docker compose up --build
+#
+# Then open http://localhost:8080. The frontend nginx proxies /api/* to
+# the backend over the internal `ryplay-net` Docker network, so the
+# backend never has to be exposed publicly.
+#
+# Required env (put in a top-level `.env` next to this file, or pass on the
+# command line):
+#   LASTFM_API_KEY=...
+#   RYPLAY_ALLOWED_ORIGINS=https://ryplay.dev   # comma-separated for multi-domain
+#
+# Optional env (improves artwork coverage for niche tracks):
+#   SPOTIFY_CLIENT_ID=...
+#   SPOTIFY_CLIENT_SECRET=...
+
+services:
+  ryplay-backend:
+    build:
+      context: ./backend
+    container_name: ryplay-backend
+    restart: unless-stopped
+    environment:
+      - LASTFM_API_KEY=${LASTFM_API_KEY:?LASTFM_API_KEY must be set}
+      - RYPLAY_ALLOWED_ORIGINS=${RYPLAY_ALLOWED_ORIGINS:-*}
+      - SPOTIFY_CLIENT_ID=${SPOTIFY_CLIENT_ID:-}
+      - SPOTIFY_CLIENT_SECRET=${SPOTIFY_CLIENT_SECRET:-}
+    networks:
+      - ryplay-net
+    expose:
+      - "8000"
+
+  ryplay-frontend:
+    build:
+      context: .
+    container_name: ryplay-frontend
+    restart: unless-stopped
+    depends_on:
+      - ryplay-backend
+    ports:
+      - "${RYPLAY_HTTP_PORT:-8080}:80"
+    networks:
+      - ryplay-net
+
+networks:
+  ryplay-net:
+    driver: bridge
