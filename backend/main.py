@@ -593,7 +593,6 @@ async def get_top_items(
     user: str = Query(..., min_length=1),
     period: str = Query("7day"),
     limit: int = Query(10, ge=1, le=50),
-    request: Request = None,
 ):
     """Top artists/tracks/albums with artwork fallback via iTunes."""
     client = request.app.state.http_client
@@ -711,7 +710,6 @@ async def get_genres(
     request: Request,
     user: str = Query(..., min_length=1),
     period: str = Query("3month"),
-    request: Request = None,
 ):
     """Genre breakdown via iTunes artist genre lookups, weighted by playcount."""
     # Scale artist sample by period — short periods have limited data,

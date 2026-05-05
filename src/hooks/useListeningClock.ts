@@ -24,10 +24,11 @@ function fetchClockData(username: string): Promise<number[][]> {
 /** Call early (e.g. on Dashboard mount) so data is warm by scroll-time */
 export function prefetchListeningClock(username: string) {
   if (!prefetchCache[username]) {
-    prefetchCache[username] = fetchClockData(username).catch(() => {
+    const promise = fetchClockData(username);
+    prefetchCache[username] = promise;
+    promise.catch(() => {
       // Don't let a failed prefetch stick around — allow retry on mount
       delete prefetchCache[username];
-      return Promise.reject(new Error("prefetch failed"));
     });
   }
 }
@@ -45,10 +46,7 @@ export function useListeningClock(username: string) {
     setLoading(true);
 
     // Use prefetched promise if available, otherwise fetch fresh
-    // @ts-expect-error this is fine
-    const dataPromise: Promise<number[][]> = prefetchCache[username]
-      ? prefetchCache[username]
-      : fetchClockData(username);
+    const dataPromise = prefetchCache[username] ?? fetchClockData(username);
     delete prefetchCache[username];
 
     const onSuccess = (grid: number[][]) => {
