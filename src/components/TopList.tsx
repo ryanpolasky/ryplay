@@ -7,6 +7,7 @@ import SectionHeader from "./SectionHeader";
 import Spinner from "./Spinner";
 import { useTopItems } from "../hooks/useTopItems";
 import type { Period, PaletteColors } from "../types/lastfm";
+import { artworkProxyUrl } from "../lib/artworkLoader";
 
 type ItemType = "artists" | "tracks" | "albums";
 
@@ -43,9 +44,7 @@ export default function TopList({ username, type, title, id, colors }: Props) {
           <div className="flex flex-col gap-1.5">
             {items.map((item, i) => {
               const pct = (item.playcount / maxCount) * 100;
-              const proxyUrl = item.imageUrl
-                ? `/api/artwork?url=${encodeURIComponent(item.imageUrl)}`
-                : null;
+              const proxyUrl = artworkProxyUrl(item.imageUrl);
 
               return (
                 <motion.a
