@@ -1,8 +1,0 @@
-src/components/SpotifyCallback.tsx
-src/components/SpotifyDashboard.tsx
-src/components/SpotifyPeriodSelector.tsx
-src/components/SpotifyTopList.tsx
-src/components/UnlockPanel.tsx
-src/hooks/useSpotifyNowPlaying.ts
-src/hooks/useSpotifyTopItems.ts
-src/types/spotify.ts
