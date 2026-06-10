@@ -1,6 +1,12 @@
 import { useRef, useEffect } from "react";
 import type { PaletteColors } from "../types/lastfm";
 
+// How long to hold the bar at 100% after a track's estimated end before
+// assuming it was replayed/looped and restarting progress from zero. Kept
+// close to the now-playing poll interval (~10s) so a genuine track change
+// swaps in a new song before we loop the current one.
+const END_HOLD_MS = 8_000;
+
 function formatTime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
   const minutes = Math.floor(totalSeconds / 60);
@@ -39,7 +45,15 @@ export default function TrackProgressBar({
     if (!startRef.current) startRef.current = Date.now();
 
     const tick = () => {
-      const elapsed = Date.now() - startRef.current;
+      let elapsed = Date.now() - startRef.current;
+
+      // Past the end: hold at 100% for the grace period, then assume the
+      // track was replayed/looped and restart progress from zero.
+      if (elapsed >= durationMs + END_HOLD_MS) {
+        startRef.current = Date.now();
+        elapsed = 0;
+      }
+
       const progress = Math.min(elapsed / durationMs, 1);
 
       if (barRef.current) {
@@ -51,9 +65,7 @@ export default function TrackProgressBar({
         );
       }
 
-      if (progress < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      }
+      rafRef.current = requestAnimationFrame(tick);
     };
 
     rafRef.current = requestAnimationFrame(tick);

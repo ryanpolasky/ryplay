@@ -23,7 +23,7 @@ Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 ## Tech Stack
 
 | Layer            | Tech                                                              |
-| ---------------- | ----------------------------------------------------------------- |
+|------------------|-------------------------------------------------------------------|
 | Frontend         | React 19, TypeScript, Vite, Tailwind CSS v4, Framer Motion        |
 | Backend          | Python, FastAPI, httpx, slowapi                                   |
 | Color Extraction | node-vibrant/browser with canvas median-cut fallback              |
@@ -92,20 +92,20 @@ docker compose up --build
 
 ## Environment Variables
 
-| Variable                 | Required | Default | Description                                                                                          |
-| ------------------------ | -------- | ------- | ---------------------------------------------------------------------------------------------------- |
-| `LASTFM_API_KEY`         | yes      | —       | Last.fm API key. Backend will refuse to start without it.                                            |
+| Variable                 | Required | Default | Description                                                                                                                                               |
+|--------------------------|----------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `LASTFM_API_KEY`         | yes      | —       | Last.fm API key. Backend will refuse to start without it.                                                                                                 |
 | `RYPLAY_ALLOWED_ORIGINS` | no       | `*`     | Comma-separated CORS allowlist. **Set to your real origin(s) in production**, e.g. `https://ryplay.dev` (or `https://ryplay.dev,https://www.ryplay.dev`). |
-| `SPOTIFY_CLIENT_ID`      | no       | —       | Spotify app client ID. Improves artwork coverage and gives access to track durations for the progress bar. |
-| `SPOTIFY_CLIENT_SECRET`  | no       | —       | Spotify app client secret. Pair with `SPOTIFY_CLIENT_ID`.                                            |
-| `RYPLAY_HTTP_PORT`       | no       | `8080`  | (docker-compose only) Host port to expose the frontend nginx on.                                     |
+| `SPOTIFY_CLIENT_ID`      | no       | —       | Spotify app client ID. Improves artwork coverage and gives access to track durations for the progress bar.                                                |
+| `SPOTIFY_CLIENT_SECRET`  | no       | —       | Spotify app client secret. Pair with `SPOTIFY_CLIENT_ID`.                                                                                                 |
+| `RYPLAY_HTTP_PORT`       | no       | `8080`  | (docker-compose only) Host port to expose the frontend nginx on.                                                                                          |
 
 For ryplay.dev's production deployment, the only env vars that need to be set are `LASTFM_API_KEY`, `RYPLAY_ALLOWED_ORIGINS=https://ryplay.dev`, and the optional Spotify pair.
 
 ## API Endpoints
 
 | Endpoint                                  | Description                                                            | Rate Limit |
-| ----------------------------------------- | ---------------------------------------------------------------------- | ---------- |
+|-------------------------------------------|------------------------------------------------------------------------|------------|
 | `GET /api/music?user=`                    | Now playing + recent tracks with streak detection and artwork fallback | 30/min     |
 | `GET /api/music/stats?user=`              | Profile overview: all-time stats, #1 artist/track/album, top genre     | 30/min     |
 | `GET /api/top?type=&user=&period=&limit=` | Top artists/tracks/albums with cascading artwork fallback              | 60/min     |

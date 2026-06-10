@@ -27,6 +27,12 @@ const ARM_START = 45; // outer edge
 const ARM_END = 20; // inner groove
 const ARM_LIFTED = -40; // rested off to the side
 
+// Hold the arm at the inner groove past a track's estimated end for this
+// grace period, then assume a replay/loop and sweep it back to the start.
+// Kept close to the now-playing poll interval (~10s) so a real track change
+// swaps in first.
+const END_HOLD_MS = 8_000;
+
 export default function VinylView({
   isPlaying,
   title,
@@ -60,6 +66,10 @@ export default function VinylView({
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
 
+  // Replay re-cue: lift/sweep/place animation state when a track loops
+  const restartingRef = useRef(false);
+  const restartTimersRef = useRef<number[]>([]);
+
   // Track change animation
   useEffect(() => {
     // First mount — just sync art, no animation
@@ -76,6 +86,11 @@ export default function VinylView({
     }
 
     prevTitleRef.current = title;
+
+    // A real track change supersedes any in-flight replay re-cue
+    restartTimersRef.current.forEach(clearTimeout);
+    restartTimersRef.current = [];
+    restartingRef.current = false;
 
     // Not playing — just swap instantly
     if (!isPlaying) {
@@ -174,11 +189,62 @@ export default function VinylView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, artworkUrl]);
 
+  // Replay re-cue — lift the needle off the inner groove, sweep the arm back
+  // out to the outer edge, then set it down at the start. A physical re-cue
+  // instead of snapping the arm straight from end to start.
+  const runReplayRestart = useCallback(() => {
+    const arm = armRef.current;
+    if (!arm) return;
+
+    restartTimersRef.current.forEach(clearTimeout);
+    restartTimersRef.current = [];
+
+    // Phase 1: lift off the groove and swing up to rest (~450ms)
+    arm.style.transition = "transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)";
+    arm.style.transform = `rotate(${ARM_LIFTED}deg)`;
+
+    // Phase 2: sweep across and lower the needle at the start (~600ms)
+    restartTimersRef.current.push(
+      window.setTimeout(() => {
+        if (!armRef.current) return;
+        armRef.current.style.transition =
+          "transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)";
+        armRef.current.style.transform = `rotate(${ARM_START}deg)`;
+      }, 470),
+    );
+
+    // Phase 3: needle placed — restart the clock so RAF resumes from the start
+    restartTimersRef.current.push(
+      window.setTimeout(() => {
+        startRef.current = Date.now();
+        restartingRef.current = false;
+      }, 1130),
+    );
+  }, []);
+
   // Tonearm tick — only runs when playing + not changing
   const tickArm = useCallback(() => {
     if (!armRef.current) return;
     if (!isPlaying || !durationMs || isChanging || changingRef.current) return;
+
+    // A replay re-cue is animating via CSS transitions; keep the RAF alive so
+    // it can resume once the needle is back at the start, but don't fight it.
+    if (restartingRef.current) {
+      if (visibleRef.current) rafRef.current = requestAnimationFrame(tickArm);
+      return;
+    }
+
     const elapsed = Date.now() - startRef.current;
+
+    // Past the end + grace period: assume a replay/loop and re-cue the arm
+    // (lift, sweep to start, place) instead of leaving it at the inner groove.
+    if (elapsed >= durationMs + END_HOLD_MS) {
+      restartingRef.current = true;
+      runReplayRestart();
+      if (visibleRef.current) rafRef.current = requestAnimationFrame(tickArm);
+      return;
+    }
+
     const progress = Math.min(elapsed / durationMs, 1);
     const angle = ARM_START + (ARM_END - ARM_START) * progress;
     armRef.current.style.transition = "none";
@@ -186,11 +252,16 @@ export default function VinylView({
     if (visibleRef.current) {
       rafRef.current = requestAnimationFrame(tickArm);
     }
-  }, [isPlaying, durationMs, isChanging]);
+  }, [isPlaying, durationMs, isChanging, runReplayRestart]);
 
   // Arm control — responds to play/pause/change states
   useEffect(() => {
     cancelAnimationFrame(rafRef.current);
+
+    // Any play/pause/track-change transition supersedes an in-flight re-cue
+    restartTimersRef.current.forEach(clearTimeout);
+    restartTimersRef.current = [];
+    restartingRef.current = false;
 
     if (isChanging || changingRef.current) {
       // Arm lifts to rest position
@@ -225,6 +296,14 @@ export default function VinylView({
 
     return () => cancelAnimationFrame(rafRef.current);
   }, [tickArm, isPlaying, durationMs, isChanging]);
+
+  // Clean up any pending replay re-cue timers on unmount
+  useEffect(() => {
+    return () => {
+      restartTimersRef.current.forEach(clearTimeout);
+      restartTimersRef.current = [];
+    };
+  }, []);
 
   // Restart tonearm RAF when sub-page becomes visible
   useEffect(() => {
