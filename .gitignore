@@ -33,3 +33,5 @@ node_modules/
 backend/__pycache__/
 /backend/rycraft_world.dat
 /backend/cookies.txt
+.wrangler
+.dev.vars
