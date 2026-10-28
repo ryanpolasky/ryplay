@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ryplay",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "ryplay.dev", "custom_domain": true }],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/internal/*"]
+  },
+  "services": [{ "binding": "SELF", "service": "ryplay" }],
+  "ratelimits": [
+    { "name": "LIMIT_LASTFM", "namespace_id": "1101", "simple": { "limit": 60, "period": 60 } },
+    { "name": "LIMIT_API", "namespace_id": "1102", "simple": { "limit": 60, "period": 60 } },
+    { "name": "LIMIT_ARTWORK", "namespace_id": "1103", "simple": { "limit": 300, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}

@@ -25,10 +25,10 @@ Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 | Layer            | Tech                                                              |
 |------------------|-------------------------------------------------------------------|
 | Frontend         | React 19, TypeScript, Vite, Tailwind CSS v4, Framer Motion        |
-| Backend          | Python, FastAPI, httpx, slowapi                                   |
+| Backend          | Cloudflare Worker (TypeScript) + Workers Assets, Cache API        |
 | Color Extraction | node-vibrant/browser with canvas median-cut fallback              |
 | Artwork Lookup   | Spotify Web API > Deezer > iTunes Search API (cascading fallback) |
-| Genre Data       | iTunes/Apple Music artist genre lookups                           |
+| Genre Data       | Last.fm artist top tags, filtered to a genre allowlist            |
 
 ## Setup
 
@@ -38,101 +38,61 @@ Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 npm install
 ```
 
-### 2. Install backend dependencies
+### 2. Get a Last.fm API key
 
-```bash
-cd backend && pip install -r requirements.txt
-```
-
-### 3. Get a Last.fm API key
-
-Free and instant at [last.fm/api/account/create](https://www.last.fm/api/account/create). Create `backend/.env`:
+Free and instant at [last.fm/api/account/create](https://www.last.fm/api/account/create). Create `.dev.vars`:
 
 ```
 LASTFM_API_KEY=your_key_here
+SPOTIFY_CLIENT_ID=optional
+SPOTIFY_CLIENT_SECRET=optional
 ```
 
-The backend refuses to start without this key set.
+Spotify is optional: it improves artwork coverage and gives track durations for the progress bar. Without it, artwork falls back to Deezer and iTunes.
 
-### 4. (Optional) Add Spotify credentials for better artwork
-
-Spotify provides the most accurate album art, especially for niche artists. Create a free app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) and add to `backend/.env`:
-
-```
-SPOTIFY_CLIENT_ID=your_client_id
-SPOTIFY_CLIENT_SECRET=your_client_secret
-```
-
-Without Spotify credentials, artwork falls back to Deezer and iTunes (still works fine, just less coverage for obscure tracks).
-
-### 5. Run
+### 3. Run
 
 ```bash
-# Terminal 1 - backend
-cd backend && uvicorn main:app --reload
-
-# Terminal 2 - frontend
-npm run dev
+npm run build && npm run dev:worker   # Worker + built assets on :8787
+npm run dev                           # Vite on :5173, proxies /api to :8787
 ```
 
-Vite proxies `/api` to the FastAPI backend on port 8000.
-
-### Run with Docker (alternative)
-
-The repo ships a `docker-compose.yml` that builds the frontend (nginx) and backend (uvicorn) into a single internal network. The backend is not exposed publicly — nginx proxies `/api/*` to it.
+### Deploy
 
 ```bash
-# Set required env (or put in a top-level .env)
-export LASTFM_API_KEY=your_key_here
-export RYPLAY_ALLOWED_ORIGINS=http://localhost:8080
-
-docker compose up --build
-# open http://localhost:8080
+npx wrangler secret put LASTFM_API_KEY   # + SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET
+npm run deploy
 ```
 
-## Environment Variables
-
-| Variable                 | Required | Default | Description                                                                                                                                               |
-|--------------------------|----------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `LASTFM_API_KEY`         | yes      | —       | Last.fm API key. Backend will refuse to start without it.                                                                                                 |
-| `RYPLAY_ALLOWED_ORIGINS` | no       | `*`     | Comma-separated CORS allowlist. **Set to your real origin(s) in production**, e.g. `https://ryplay.dev` (or `https://ryplay.dev,https://www.ryplay.dev`). |
-| `SPOTIFY_CLIENT_ID`      | no       | —       | Spotify app client ID. Improves artwork coverage and gives access to track durations for the progress bar.                                                |
-| `SPOTIFY_CLIENT_SECRET`  | no       | —       | Spotify app client secret. Pair with `SPOTIFY_CLIENT_ID`.                                                                                                 |
-| `RYPLAY_HTTP_PORT`       | no       | `8080`  | (docker-compose only) Host port to expose the frontend nginx on.                                                                                          |
-
-For ryplay.dev's production deployment, the only env vars that need to be set are `LASTFM_API_KEY`, `RYPLAY_ALLOWED_ORIGINS=https://ryplay.dev`, and the optional Spotify pair.
+`wrangler.jsonc` binds the `ryplay.dev` custom domain. Public API responses are cached with the Cache API (no KV), and genre lookups fan out across self-calls to stay under the Workers Free 50-subrequest limit.
 
 ## API Endpoints
 
 | Endpoint                                  | Description                                                            | Rate Limit |
 |-------------------------------------------|------------------------------------------------------------------------|------------|
-| `GET /api/music?user=`                    | Now playing + recent tracks with streak detection and artwork fallback | 30/min     |
-| `GET /api/music/stats?user=`              | Profile overview: all-time stats, #1 artist/track/album, top genre     | 30/min     |
+| `GET /api/music?user=`                    | Now playing + recent tracks with streak detection and artwork fallback | 60/min     |
+| `GET /api/music/stats?user=`              | Profile overview: all-time stats, #1 artist/track/album, top genre     | 60/min     |
 | `GET /api/top?type=&user=&period=&limit=` | Top artists/tracks/albums with cascading artwork fallback              | 60/min     |
-| `GET /api/genres?user=&period=`           | Genre breakdown via iTunes artist genre lookups                        | 30/min     |
-| `GET /api/clock?user=&tz=`                | Listening clock heatmap (last 7 days, 7x24 grid)                       | 20/min     |
+| `GET /api/genres?user=&period=`           | Genre breakdown via Last.fm artist tags                                | 60/min     |
+| `GET /api/clock?user=&tz=`                | Listening clock heatmap (last 7 days, 7x24 grid)                       | 60/min     |
 | `GET /api/artwork?url=`                   | CORS-compliant image proxy with SSRF protection                        | 300/min    |
 | `GET /api/lastfm`                         | Generic Last.fm API proxy (allowlisted read methods only)              | 60/min     |
 
-Limits are per-IP. Powered by [slowapi](https://github.com/laurentS/slowapi).
+Limits are per-IP per endpoint, via Workers Rate Limiting bindings.
 
 ## Project Structure
 
 ```
 ryplay/
-  backend/
-    main.py             # FastAPI server
-    .env                # LASTFM_API_KEY + optional Spotify creds
+  worker/index.ts       # Cloudflare Worker: /api/* + static assets
+  wrangler.jsonc        # Worker config, custom domain, rate limits
   src/
     components/         # React components
     hooks/              # Data fetching + color extraction
     context/            # User + settings context
     types/              # TypeScript types
     lib/                # Backgrounds, favicon generator, artwork loader
-  docker-compose.yml    # Local + single-host production deploy
-  Dockerfile            # Frontend (nginx + built SPA)
-  backend/Dockerfile    # Backend (uvicorn)
-  nginx.conf            # SPA routing + /api proxy to ryplay-backend:8000
+  public/_headers       # Static asset cache headers
 ```
 
 Built with <3 by [ryanpolasky](https://linkedin.com/in/ryan-polasky)
