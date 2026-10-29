@@ -205,7 +205,7 @@ export default function Landing() {
             </motion.span>{" "}
             by{" "}
             <a
-              href="https://www.linkedin.com/in/ryan-polasky"
+              href="https://ryanpolasky.com"
               target="_blank"
               rel="noopener noreferrer"
               className="text-white/25 transition-colors"
