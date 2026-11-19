@@ -541,7 +541,7 @@ export default {
     const url = new URL(request.url);
     if (LEGACY_HOSTS.has(url.hostname)) {
       url.hostname = CANONICAL_HOST;
-      return Response.redirect(url.toString(), 301);
+      return new Response(null, { status: 301, headers: { Location: url.toString(), "Access-Control-Allow-Origin": "*" } });
     }
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
