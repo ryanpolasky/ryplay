@@ -34,7 +34,7 @@ const PANELS = [
 ];
 
 export default function Dashboard() {
-  const { username, setUsername } = useUser();
+  const { username } = useUser();
   const { settings, isMobile } = useSettings();
 
   // Prefetch clock data immediately so it's ready when user scrolls there
@@ -50,10 +50,6 @@ export default function Dashboard() {
   const [colors, setColors] = useState<PaletteColors>(DEFAULT_PALETTE);
   const [chromeVisible, setChromeVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showHint, setShowHint] = useState(
-    () => !localStorage.getItem("ryplay-username"),
-  );
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [nowPlayingSubPage, setNowPlayingSubPage] = useState(0);
   const [toast, setToast] = useState<{
     title: string;
@@ -160,24 +156,6 @@ export default function Dashboard() {
       window.removeEventListener("focus", wakeChrome);
     };
   }, [wakeChrome, throttledWake]);
-
-  // Auto-dismiss first-visit hint
-  useEffect(() => {
-    if (!showHint) return;
-    const el = scrollRef.current;
-    const dismiss = () => setShowHint(false);
-    const autoTimer = setTimeout(dismiss, 7000);
-    const attachTimer = window.setTimeout(() => {
-      window.addEventListener("click", dismiss, { once: true });
-      el?.addEventListener("scroll", dismiss, { once: true });
-    }, 1500);
-    return () => {
-      clearTimeout(autoTimer);
-      clearTimeout(attachTimer);
-      window.removeEventListener("click", dismiss);
-      el?.removeEventListener("scroll", dismiss);
-    };
-  }, [showHint]);
 
   // Mark panels as visited when they come into range
   useEffect(() => {
@@ -341,76 +319,16 @@ export default function Dashboard() {
         style={{ pointerEvents: chromeVisible ? "auto" : "none" }}
       >
         <Logo colors={colors} hasArtwork={isExtracted} className="text-base" />
-        <div className="group/user relative">
-          <button
-            className="text-sm text-white/40 cursor-pointer"
-            onClick={() => {
-              setShowUserMenu((v) => !v);
-              setShowHint(false);
-            }}
-          >
-            {username}
-          </button>
-          <div
-            className={`absolute top-full right-0 mt-1 flex flex-col items-end gap-0.5 transition-all duration-200 ease-out ${showUserMenu ? "opacity-100 translate-y-0" : "opacity-0 translate-y-[-4px] pointer-events-none"} md:pointer-events-auto md:opacity-0 md:translate-y-[-4px] md:group-hover/user:opacity-100 md:group-hover/user:translate-y-0`}
-          >
-            {localStorage.getItem("ryplay-username") && (
-              <a
-                href={`https://www.last.fm/user/${username}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[10px] text-white/30 hover:text-white/60 tracking-wide uppercase whitespace-nowrap cursor-pointer"
-              >
-                view profile
-              </a>
-            )}
-            <button
-              onClick={() => setUsername(null)}
-              className="text-[10px] text-white/30 hover:text-white/60 tracking-wide uppercase whitespace-nowrap cursor-pointer"
-            >
-              {localStorage.getItem("ryplay-username")
-                ? "disconnect"
-                : "try yours"}
-            </button>
-          </div>
-        </div>
+        <a
+          href={`https://listenbrainz.org/user/${username}/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-white/40 hover:text-white/60"
+        >
+          {username}
+        </a>
       </motion.header>
 
-      {/* First-visit hint pointing at username */}
-      <AnimatePresence>
-        {showHint && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{
-              opacity: 0,
-              y: -8,
-              transition: { duration: 0.15, delay: 0 },
-            }}
-            transition={{
-              delay: 1,
-              type: "spring",
-              stiffness: 400,
-              damping: 28,
-            }}
-            className="fixed top-11 sm:top-14 right-4 sm:right-6 z-40 flex flex-col items-end gap-1.5 pointer-events-none"
-          >
-            <svg
-              width="16"
-              height="10"
-              viewBox="0 0 16 10"
-              className="mr-3 text-white/80"
-            >
-              <path d="M8 0L16 10H0z" fill="currentColor" />
-            </svg>
-            <div className="rounded-xl bg-white/10 backdrop-blur-xl ring-1 ring-white/15 px-4 py-3 max-w-[220px]">
-              <p className="text-sm text-white/80 leading-snug">
-                tap the username above to switch users or enter your own
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Dot navigation — expands to ToC on hover */}
       <NavDots

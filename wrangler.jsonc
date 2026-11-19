@@ -5,14 +5,21 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "preview_urls": false,
-  "routes": [{ "pattern": "ryplay.dev", "custom_domain": true }],
+  "routes": [
+    { "pattern": "ryplay.ryanpolasky.com", "custom_domain": true },
+    { "pattern": "ryplay.dev", "custom_domain": true }
+  ],
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/internal/*"]
+    "run_worker_first": true
   },
-  "services": [{ "binding": "SELF", "service": "ryplay" }],
+  "vars": { "LB_USER": "ryanpolasky" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "ryplay", "database_id": "f1949821-1d1a-4479-bc28-4976083de872", "migrations_dir": "migrations" }
+  ],
+  "triggers": { "crons": ["* * * * *"] },
   "ratelimits": [
     { "name": "LIMIT_LASTFM", "namespace_id": "1101", "simple": { "limit": 60, "period": 60 } },
     { "name": "LIMIT_API", "namespace_id": "1102", "simple": { "limit": 60, "period": 60 } },
