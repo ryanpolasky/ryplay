@@ -153,7 +153,7 @@ async function resolveArtwork(c: Ctx, artist: string, title: string, fallback = 
 }
 
 const listenUrl = (artist: string, title: string) =>
-  `https://listenbrainz.org/search/?search_type=track&search_term=${encodeURIComponent(`${artist} ${title}`)}`;
+  `https://musicbrainz.org/search?type=recording&query=${encodeURIComponent(`${title} ${artist}`)}`;
 
 type RecentTrack = { title: string; artist: string; album: string; artworkUrl: string; trackUrl: string; timestamp: number; streak?: number };
 
