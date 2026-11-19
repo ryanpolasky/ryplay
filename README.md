@@ -1,6 +1,8 @@
 # ryplay
 
-Your music, visualized. A real-time music stats dashboard powered by Last.fm.
+What Ryan is listening to right now. Archived side project, live at [ryplay.ryanpolasky.com](https://ryplay.ryanpolasky.com).
+
+Originally a multi-user Last.fm dashboard. When Last.fm put API keys behind Pro, it became a single-user dashboard backed by [ListenBrainz](https://listenbrainz.org): a cron mirrors listens into D1 and every stat is computed locally.
 
 <img width="1200" height="721" alt="og" src="https://github.com/user-attachments/assets/62addbd2-5ee2-44bf-801f-bb7100352fed" />
 
@@ -16,7 +18,6 @@ Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 - **Dynamic Theming** - background, logo, and favicon colors extracted from current album art
 - **8 Backgrounds** - Default, Solid, Gradient, Dual Tone, Embers, Reactive, Smoke, and Nebula
 - **Customizable Fonts** - choose from multiple font options in the settings panel
-- **URL Routing** - shareable profiles at `ryplay.dev/{username}`
 - **Auto-hide UI** - chrome fades after 15s idle, on window blur, or tab switch
 - **Keyboard Navigation** - arrow keys to move between panels
 
@@ -25,10 +26,11 @@ Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 | Layer            | Tech                                                              |
 |------------------|-------------------------------------------------------------------|
 | Frontend         | React 19, TypeScript, Vite, Tailwind CSS v4, Framer Motion        |
-| Backend          | Cloudflare Worker (TypeScript) + Workers Assets, Cache API        |
+| Backend          | Cloudflare Worker (TypeScript) + Workers Assets, D1, Cache API    |
+| Listen Data      | ListenBrainz listens mirrored into D1 every minute                |
 | Color Extraction | node-vibrant/browser with canvas median-cut fallback              |
-| Artwork Lookup   | Spotify Web API > Deezer > iTunes Search API (cascading fallback) |
-| Genre Data       | Last.fm artist top tags, filtered to a genre allowlist            |
+| Artwork Lookup   | Spotify Web API > Deezer > Cover Art Archive > iTunes             |
+| Genre Data       | MusicBrainz artist tags via ListenBrainz, mapped to an allowlist  |
 
 ## Setup
 
@@ -38,12 +40,11 @@ Your music, visualized. A real-time music stats dashboard powered by Last.fm.
 npm install
 ```
 
-### 2. Get a Last.fm API key
+### 2. Configure
 
-Free and instant at [last.fm/api/account/create](https://www.last.fm/api/account/create). Create `.dev.vars`:
+`LB_USER` in `wrangler.jsonc` is the ListenBrainz user to mirror. Optionally create `.dev.vars`:
 
 ```
-LASTFM_API_KEY=your_key_here
 SPOTIFY_CLIENT_ID=optional
 SPOTIFY_CLIENT_SECRET=optional
 ```
@@ -53,18 +54,21 @@ Spotify is optional: it improves artwork coverage and gives track durations for 
 ### 3. Run
 
 ```bash
+npx wrangler d1 migrations apply ryplay --local
 npm run build && npm run dev:worker   # Worker + built assets on :8787
+curl "localhost:8787/__scheduled?cron=*+*+*+*+*"   # with --test-scheduled, pulls listens
 npm run dev                           # Vite on :5173, proxies /api to :8787
 ```
 
 ### Deploy
 
 ```bash
-npx wrangler secret put LASTFM_API_KEY   # + SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET
+npx wrangler d1 migrations apply ryplay --remote
+npx wrangler secret put SPOTIFY_CLIENT_ID   # + SPOTIFY_CLIENT_SECRET
 npm run deploy
 ```
 
-`wrangler.jsonc` binds the `ryplay.dev` custom domain. Public API responses are cached with the Cache API (no KV), and genre lookups fan out across self-calls to stay under the Workers Free 50-subrequest limit.
+`wrangler.jsonc` binds `ryplay.ryanpolasky.com`; `ryplay.dev` 301s there until it expires. A once-a-minute cron pulls new listens from ListenBrainz, and re-walks history if ListenBrainz reports more listens than D1 has (e.g. after an import).
 
 ## API Endpoints
 
@@ -73,18 +77,20 @@ npm run deploy
 | `GET /api/music?user=`                    | Now playing + recent tracks with streak detection and artwork fallback | 60/min     |
 | `GET /api/music/stats?user=`              | Profile overview: all-time stats, #1 artist/track/album, top genre     | 60/min     |
 | `GET /api/top?type=&user=&period=&limit=` | Top artists/tracks/albums with cascading artwork fallback              | 60/min     |
-| `GET /api/genres?user=&period=`           | Genre breakdown via Last.fm artist tags                                | 60/min     |
+| `GET /api/genres?user=&period=`           | Genre breakdown via MusicBrainz artist tags                            | 60/min     |
 | `GET /api/clock?user=&tz=`                | Listening clock heatmap (last 7 days, 7x24 grid)                       | 60/min     |
 | `GET /api/artwork?url=`                   | CORS-compliant image proxy with SSRF protection                        | 300/min    |
-| `GET /api/lastfm`                         | Generic Last.fm API proxy (allowlisted read methods only)              | 60/min     |
+| `GET /api/lastfm?method=&user=`           | Last.fm-shaped read-only view of the mirror (`user.getinfo`, `user.getrecenttracks`, `user.gettop{artists,tracks,albums}`, `user.getweekly{chartlist,artistchart}`) | 60/min     |
 
-Limits are per-IP per endpoint, via Workers Rate Limiting bindings.
+`user` must be the configured `LB_USER`; anything else 404s. Limits are per-IP per endpoint, via Workers Rate Limiting bindings.
 
 ## Project Structure
 
 ```
 ryplay/
   worker/index.ts       # Cloudflare Worker: /api/* + static assets
+  worker/listens.ts     # ListenBrainz sync + D1 queries
+  migrations/           # D1 schema
   wrangler.jsonc        # Worker config, custom domain, rate limits
   src/
     components/         # React components

@@ -1,7 +1,7 @@
 {
-  "name": "ryplay - Your Music, Visualized",
+  "name": "ryplay - What Ryan Polasky Is Listening To",
   "short_name": "ryplay",
-  "description": "A real-time music dashboard powered by Last.fm. Visualize your listening habits, track streaks, and share your music taste.",
+  "description": "A live dashboard of what Ryan Polasky is listening to right now: now playing, recent history, top artists, genres, and a listening clock. An archived side project, powered by ListenBrainz.",
   "lang": "en",
   "dir": "ltr",
   "categories": ["music", "entertainment", "lifestyle"],
