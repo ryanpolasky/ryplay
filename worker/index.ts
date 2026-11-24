@@ -451,7 +451,7 @@ async function lastfmCompat(c: Ctx, url: URL): Promise<Response> {
         const art = rows.find((l) => l.artist === playing.artist && l.track === playing.track);
         track.unshift({
           name: playing.track, artist: { "#text": playing.artist, mbid: "" }, album: { "#text": playing.album, mbid: "" },
-          image: lfImage(art ? coverArt(art) : (playing.art ?? "")), url: listenUrl(playing.artist, playing.track), streamable: "0", "@attr": { nowplaying: "true" },
+          image: lfImage(playing.art ?? (art ? coverArt(art) : "")), url: listenUrl(playing.artist, playing.track), streamable: "0", "@attr": { nowplaying: "true" },
         });
       }
       return json({ recenttracks: { track, "@attr": attr(total) } });
@@ -610,12 +610,14 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
   return res;
 }
 
-// One-time OAuth link: visit /auth/spotify?key=<client secret>, approve Spotify,
-// and the callback stores the refresh token in D1 for the cron poller.
+// One-time OAuth link: visit /auth/spotify, approve Spotify, and the callback
+// stores the refresh token in D1 for the cron poller. Linking is only possible
+// while no refresh token is stored, so the first (owner) connection wins and
+// nobody can replace it afterwards.
 async function spotifyAuth(request: Request, url: URL, env: Env): Promise<Response> {
   if (!env.SPOTIFY_CLIENT_ID || !env.SPOTIFY_CLIENT_SECRET) return new Response("Spotify not configured", { status: 500 });
+  if (await getMeta(env, "spotify.refresh")) return new Response("Spotify already connected", { status: 403 });
   if (url.pathname === "/auth/spotify") {
-    if (url.searchParams.get("key") !== env.SPOTIFY_CLIENT_SECRET) return new Response("Forbidden", { status: 403 });
     const auth = new URL("https://accounts.spotify.com/authorize");
     auth.search = new URLSearchParams({
       client_id: env.SPOTIFY_CLIENT_ID,
