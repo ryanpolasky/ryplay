@@ -223,17 +223,43 @@ export async function artistGenres(env: ListenEnv, artists: string[]): Promise<R
   const byMbid = new Map<string, string>();
   for (const r of ids) if (r.mbid) byMbid.set(r.mbid, r.artist);
 
+  // Most imported listens lack artist_mbids; resolve a handful of names via
+  // MusicBrainz so the genre lookup has something to work with.
+  const noMbid = missing.filter((a) => !ids.some((r) => r.artist === a && r.mbid)).slice(0, 25);
+  await Promise.all(noMbid.map(async (name) => {
+    const q = encodeURIComponent(`artist:"${name.replace(/"/g, "")}"`);
+    try {
+      const r = await fetch(`https://musicbrainz.org/ws/2/artist/?fmt=json&limit=1&query=${q}`, {
+        headers: { "User-Agent": USER_AGENT },
+        signal: AbortSignal.timeout(10000),
+      });
+      const mbid = r.ok ? (await r.json() as Json)?.artists?.[0]?.id : null;
+      if (mbid) byMbid.set(mbid, name);
+    } catch {}
+  }));
+
   const mbids = [...byMbid.keys()];
   const found: Record<string, string | null> = {};
+  const lookupFailed = new Set<string>();
   for (let i = 0; i < mbids.length; i += 40) {
-    const data: Json[] | null = await lb(`/metadata/artist/?artist_mbids=${mbids.slice(i, i + 40).join(",")}&inc=tag`, 15000);
-    for (const a of data ?? []) {
+    const batch = mbids.slice(i, i + 40);
+    const data: Json[] | null = await lb(`/metadata/artist/?artist_mbids=${batch.join(",")}&inc=tag`, 15000);
+    if (data === null) {
+      // Lookup failed (e.g. upstream challenge); leave those artists uncached so
+      // they retry instead of pinning genre=null for GENRE_RECHECK days.
+      for (const m of batch) {
+        const name = byMbid.get(m);
+        if (name) lookupFailed.add(name);
+      }
+      continue;
+    }
+    for (const a of data) {
       const name = byMbid.get(a.artist_mbid);
       if (name) found[name] = pickGenre(a.tag?.artist ?? []);
     }
   }
-  const rows = missing.map((a) => ({ artist: a, genre: found[a] ?? null }));
-  await env.DB.prepare(
+  const rows = missing.filter((a) => !lookupFailed.has(a)).map((a) => ({ artist: a, genre: found[a] ?? null }));
+  if (rows.length) await env.DB.prepare(
     `INSERT INTO artist_genres (artist, genre, checked_at)
      SELECT j.value->>'artist', j.value->>'genre', ?2 FROM json_each(?1) j WHERE true
      ON CONFLICT(artist) DO UPDATE SET genre = excluded.genre, checked_at = excluded.checked_at`,
