@@ -71,11 +71,11 @@ function toListen(l: Json): Listen | null {
   };
 }
 
-async function getMeta(env: ListenEnv, key: string): Promise<string | null> {
+export async function getMeta(env: ListenEnv, key: string): Promise<string | null> {
   return (await env.DB.prepare("SELECT value FROM meta WHERE key = ?").bind(key).first<{ value: string }>())?.value ?? null;
 }
 
-async function setMeta(env: ListenEnv, key: string, value: string | number) {
+export async function setMeta(env: ListenEnv, key: string, value: string | number) {
   await env.DB.prepare("INSERT INTO meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = ?2").bind(key, String(value)).run();
 }
 

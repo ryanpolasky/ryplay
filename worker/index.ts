@@ -1,6 +1,6 @@
 import {
-  type Listen, type ListenEnv, type TopKind, PERIODS, artistGenres, countBetween, coverArt, isOwner, nowPlaying,
-  periodStart, recent, sync, timestampsSince, top, totals, weeklyChartList,
+  type Listen, type ListenEnv, type NowPlaying, type TopKind, PERIODS, artistGenres, countBetween, coverArt, getMeta, isOwner, nowPlaying,
+  periodStart, recent, setMeta, sync, timestampsSince, top, totals, weeklyChartList,
 } from "./listens";
 
 interface Env extends ListenEnv {
@@ -176,9 +176,83 @@ function requireOwner(env: Env, user: string) {
   if (!isOwner(env, user)) throw new HttpError(404, "User not found");
 }
 
+// Personal now-playing feed: the cron polls Spotify's currently-playing endpoint
+// each minute (ListenBrainz's Spotify importer only syncs history, never now-playing)
+// and stashes the result in D1; API responses prefer it over the ListenBrainz
+// playing-now endpoint.
+type SpotifyNow = NowPlaying & { art: string | null; progressMs: number | null; at: number };
+type StoredSpotifyNow = SpotifyNow & { isPlaying: boolean };
+
+async function spotifyTokenPost(env: Env, body: URLSearchParams): Promise<Json | null> {
+  const r = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${btoa(`${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`)}`,
+    },
+    body,
+    signal: AbortSignal.timeout(8000),
+  }).catch(() => null);
+  if (!r?.ok) return null;
+  return r.json().catch(() => null);
+}
+
+async function spotifyAccessToken(env: Env): Promise<string | null> {
+  const cached = JSON.parse((await getMeta(env, "spotify.access")) ?? "null") as { token: string; exp: number } | null;
+  if (cached && Date.now() / 1000 < cached.exp - 60) return cached.token;
+  const refresh = await getMeta(env, "spotify.refresh");
+  if (!refresh || !env.SPOTIFY_CLIENT_ID || !env.SPOTIFY_CLIENT_SECRET) return null;
+  const data = await spotifyTokenPost(env, new URLSearchParams({ grant_type: "refresh_token", refresh_token: refresh }));
+  if (!data?.access_token) return null;
+  if (data.refresh_token) await setMeta(env, "spotify.refresh", data.refresh_token);
+  await setMeta(env, "spotify.access", JSON.stringify({ token: data.access_token, exp: Date.now() / 1000 + (data.expires_in ?? 3600) }));
+  return data.access_token;
+}
+
+async function spotifyPoll(env: Env) {
+  if (!env.SPOTIFY_CLIENT_ID || !env.SPOTIFY_CLIENT_SECRET) return;
+  const token = await spotifyAccessToken(env);
+  if (!token) return;
+  const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(8000),
+  }).catch(() => null);
+  if (r?.status === 204 || r?.status === 404) {
+    await setMeta(env, "spotify.now", JSON.stringify({ isPlaying: false, at: Math.floor(Date.now() / 1000) }));
+    return;
+  }
+  const data = r?.ok ? ((await r.json().catch(() => null)) as Json | null) : null;
+  if (!data) return; // keep the last state on upstream errors; readers reject stale entries
+  const item = data.item;
+  const state: StoredSpotifyNow = {
+    isPlaying: !!(data.is_playing && item?.type === "track"),
+    artist: item?.artists?.[0]?.name ?? "",
+    track: item?.name ?? "",
+    album: item?.album?.name ?? "",
+    durationMs: typeof item?.duration_ms === "number" ? item.duration_ms : null,
+    progressMs: typeof data.progress_ms === "number" ? data.progress_ms : null,
+    art: item?.album?.images?.[0]?.url ?? null,
+    at: Math.floor(Date.now() / 1000),
+  };
+  await setMeta(env, "spotify.now", JSON.stringify(state));
+}
+
+const SPOTIFY_NOW_STALE = 180;
+
+async function liveNow(env: Env): Promise<(NowPlaying & { art?: string | null }) | null> {
+  const raw = await getMeta(env, "spotify.now").catch(() => null);
+  if (raw) {
+    const s = JSON.parse(raw) as StoredSpotifyNow;
+    if (s.isPlaying && Date.now() / 1000 - s.at <= SPOTIFY_NOW_STALE) {
+      return { artist: s.artist, track: s.track, album: s.album, durationMs: s.durationMs, art: s.art };
+    }
+  }
+  return nowPlaying(env);
+}
+
 async function getMusic(c: Ctx, user: string) {
   requireOwner(c.env, user);
-  const [listens, playing] = await Promise.all([recent(c.env, 60), nowPlaying(c.env)]);
+  const [listens, playing] = await Promise.all([recent(c.env, 60), liveNow(c.env)]);
   if (!listens.length && !playing) return graceCache.get(user)?.v ?? { isPlaying: false, recentTracks: [] };
 
   const recentTracks = collapseRecent(listens);
@@ -186,7 +260,7 @@ async function getMusic(c: Ctx, user: string) {
   const headListen = listens.find((l) => l.artist === head.artist && l.track === head.track);
 
   const [headArt] = await Promise.all([
-    resolveArtwork(c, head.artist, head.track, headListen ? coverArt(headListen) : "", head.album),
+    playing?.art ? { url: playing.art, durationMs: null } : resolveArtwork(c, head.artist, head.track, headListen ? coverArt(headListen) : "", head.album),
     ...recentTracks.map(async (r) => {
       r.artworkUrl = (await resolveArtwork(c, r.artist, r.title, r.artworkUrl, r.album)).url;
     }),
@@ -366,7 +440,7 @@ async function lastfmCompat(c: Ctx, url: URL): Promise<Response> {
       const to = parseInt(url.searchParams.get("to") ?? "") || 2 ** 31;
       const nowTs = Math.floor(Date.now() / 1000);
       const [rows, total, playing] = await Promise.all([
-        recent(env, Math.min(limit, 200), from, to, offset), countBetween(env, from, to), page === 1 && to >= nowTs ? nowPlaying(env) : null,
+        recent(env, Math.min(limit, 200), from, to, offset), countBetween(env, from, to), page === 1 && to >= nowTs ? liveNow(env) : null,
       ]);
       const track: Json[] = rows.map((l) => ({
         name: l.track, artist: { "#text": l.artist, mbid: l.artist_mbid ?? "" }, album: { "#text": l.album, mbid: l.release_mbid ?? "" },
@@ -377,7 +451,7 @@ async function lastfmCompat(c: Ctx, url: URL): Promise<Response> {
         const art = rows.find((l) => l.artist === playing.artist && l.track === playing.track);
         track.unshift({
           name: playing.track, artist: { "#text": playing.artist, mbid: "" }, album: { "#text": playing.album, mbid: "" },
-          image: lfImage(art ? coverArt(art) : ""), url: listenUrl(playing.artist, playing.track), streamable: "0", "@attr": { nowplaying: "true" },
+          image: lfImage(art ? coverArt(art) : (playing.art ?? "")), url: listenUrl(playing.artist, playing.track), streamable: "0", "@attr": { nowplaying: "true" },
         });
       }
       return json({ recenttracks: { track, "@attr": attr(total) } });
@@ -536,6 +610,34 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
   return res;
 }
 
+// One-time OAuth link: visit /auth/spotify?key=<client secret>, approve Spotify,
+// and the callback stores the refresh token in D1 for the cron poller.
+async function spotifyAuth(request: Request, url: URL, env: Env): Promise<Response> {
+  if (!env.SPOTIFY_CLIENT_ID || !env.SPOTIFY_CLIENT_SECRET) return new Response("Spotify not configured", { status: 500 });
+  if (url.pathname === "/auth/spotify") {
+    if (url.searchParams.get("key") !== env.SPOTIFY_CLIENT_SECRET) return new Response("Forbidden", { status: 403 });
+    const auth = new URL("https://accounts.spotify.com/authorize");
+    auth.search = new URLSearchParams({
+      client_id: env.SPOTIFY_CLIENT_ID,
+      response_type: "code",
+      redirect_uri: `${url.origin}/auth/spotify/callback`,
+      scope: "user-read-currently-playing",
+    }).toString();
+    return Response.redirect(auth.toString(), 302);
+  }
+  const code = url.searchParams.get("code");
+  if (!code) return new Response("Missing code", { status: 400 });
+  const data = await spotifyTokenPost(env, new URLSearchParams({
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: `${url.origin}/auth/spotify/callback`,
+  }));
+  if (!data?.refresh_token) return new Response("Spotify auth failed", { status: 502 });
+  await setMeta(env, "spotify.refresh", data.refresh_token);
+  await setMeta(env, "spotify.access", JSON.stringify({ token: data.access_token, exp: Date.now() / 1000 + (data.expires_in ?? 3600) }));
+  return new Response("Spotify connected — ryplay picks up now-playing within a minute.", { headers: { "Content-Type": "text/plain" } });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -543,6 +645,7 @@ export default {
       url.hostname = CANONICAL_HOST;
       return new Response(null, { status: 301, headers: { Location: url.toString(), "Access-Control-Allow-Origin": "*" } });
     }
+    if (url.pathname === "/auth/spotify" || url.pathname === "/auth/spotify/callback") return spotifyAuth(request, url, env);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
       return await handleApi(request, env, ctx);
@@ -553,6 +656,6 @@ export default {
     }
   },
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(sync(env));
+    ctx.waitUntil(Promise.all([sync(env), spotifyPoll(env)]));
   },
 } satisfies ExportedHandler<Env>;
