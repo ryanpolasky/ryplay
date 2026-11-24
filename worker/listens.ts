@@ -224,8 +224,11 @@ export async function artistGenres(env: ListenEnv, artists: string[]): Promise<R
   for (const r of ids) if (r.mbid) byMbid.set(r.mbid, r.artist);
 
   // Most imported listens lack artist_mbids; resolve a handful of names via
-  // MusicBrainz so the genre lookup has something to work with.
-  const noMbid = missing.filter((a) => !ids.some((r) => r.artist === a && r.mbid)).slice(0, 25);
+  // MusicBrainz so the genre lookup has something to work with. Artists past the
+  // cap or whose search fails are left uncached so they retry next call.
+  const unsearched = new Set(missing.filter((a) => !ids.some((r) => r.artist === a && r.mbid)).slice(25));
+  const failedMb = new Set<string>();
+  const noMbid = missing.filter((a) => !unsearched.has(a) && !ids.some((r) => r.artist === a && r.mbid));
   await Promise.all(noMbid.map(async (name) => {
     const q = encodeURIComponent(`artist:"${name.replace(/"/g, "")}"`);
     try {
@@ -233,9 +236,13 @@ export async function artistGenres(env: ListenEnv, artists: string[]): Promise<R
         headers: { "User-Agent": USER_AGENT },
         signal: AbortSignal.timeout(10000),
       });
-      const mbid = r.ok ? (await r.json() as Json)?.artists?.[0]?.id : null;
-      if (mbid) byMbid.set(mbid, name);
-    } catch {}
+      if (!r.ok) throw new Error(`${r.status}`);
+      const hit = (await r.json() as Json)?.artists?.[0];
+      // Only trust high-confidence matches; for namesakes the top hit can be the wrong artist.
+      if (hit?.id && (hit.score ?? 0) >= 90) byMbid.set(hit.id, name);
+    } catch {
+      failedMb.add(name);
+    }
   }));
 
   const mbids = [...byMbid.keys()];
@@ -258,7 +265,7 @@ export async function artistGenres(env: ListenEnv, artists: string[]): Promise<R
       if (name) found[name] = pickGenre(a.tag?.artist ?? []);
     }
   }
-  const rows = missing.filter((a) => !lookupFailed.has(a)).map((a) => ({ artist: a, genre: found[a] ?? null }));
+  const rows = missing.filter((a) => !lookupFailed.has(a) && !unsearched.has(a) && !failedMb.has(a)).map((a) => ({ artist: a, genre: found[a] ?? null }));
   if (rows.length) await env.DB.prepare(
     `INSERT INTO artist_genres (artist, genre, checked_at)
      SELECT j.value->>'artist', j.value->>'genre', ?2 FROM json_each(?1) j WHERE true
