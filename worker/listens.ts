@@ -226,7 +226,13 @@ export async function artistGenres(env: ListenEnv, artists: string[]): Promise<R
   // Most imported listens lack artist_mbids; resolve a handful of names via
   // MusicBrainz so the genre lookup has something to work with. Artists past the
   // cap or whose search fails are left uncached so they retry next call.
-  const unsearched = new Set(missing.filter((a) => !ids.some((r) => r.artist === a && r.mbid)).slice(25));
+  const noMbidAll = missing.filter((a) => !ids.some((r) => r.artist === a && r.mbid));
+  // Shuffle so a failing head-of-list doesn't starve lower artists across retries.
+  for (let i = noMbidAll.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [noMbidAll[i], noMbidAll[j]] = [noMbidAll[j], noMbidAll[i]];
+  }
+  const unsearched = new Set(noMbidAll.slice(25));
   const failedMb = new Set<string>();
   const noMbid = missing.filter((a) => !unsearched.has(a) && !ids.some((r) => r.artist === a && r.mbid));
   await Promise.all(noMbid.map(async (name) => {
