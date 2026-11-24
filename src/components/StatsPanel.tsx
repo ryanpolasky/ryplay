@@ -336,7 +336,7 @@ async function generateShareImage(
   // --- Branding ---
   ctx.font = font(16);
   ctx.textAlign = "right";
-  const brandFull = `ryplay.dev/${username}`;
+  const brandFull = `ryplay.ryanpolasky.com`;
   const brandFullW = ctx.measureText(brandFull).width;
   // Draw full string in white first
   ctx.fillStyle = "rgba(255,255,255,0.25)";
