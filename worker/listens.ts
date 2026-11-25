@@ -195,9 +195,9 @@ const TOP_SQL = {
 
 export type TopKind = keyof typeof TOP_SQL;
 
-export const TOP_TTL = 1800;
+export const TOP_TTL = 900;
 
-// Rolling-window aggregates scan the whole period, so serve them from meta for TOP_TTL.
+// Rolling-window aggregates scan the whole period; meta + edge TTLs stack to <= 30 min stale.
 export async function top(env: ListenEnv, kind: TopKind, from: number, limit: number, offset = 0, to = 2 ** 31) {
   const now = Math.floor(Date.now() / 1000);
   const key = to >= 2 ** 31 ? `top:${kind}:${from ? Math.round((now - from) / 3600) : "all"}:${limit}:${offset}` : null;
