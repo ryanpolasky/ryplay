@@ -195,9 +195,19 @@ const TOP_SQL = {
 
 export type TopKind = keyof typeof TOP_SQL;
 
+export const TOP_TTL = 900;
+
+// Rolling-window aggregates scan the whole period; meta + edge TTLs stack to <= 30 min stale.
 export async function top(env: ListenEnv, kind: TopKind, from: number, limit: number, offset = 0, to = 2 ** 31) {
+  const now = Math.floor(Date.now() / 1000);
+  const key = to >= 2 ** 31 ? `top:${kind}:${from ? Math.round((now - from) / 3600) : "all"}:${limit}:${offset}` : null;
+  if (key) {
+    const hit = JSON.parse((await getMeta(env, key)) ?? "null") as { at: number; rows: TopRow[] } | null;
+    if (hit && now - hit.at < TOP_TTL) return hit.rows;
+  }
   const { results } = await env.DB.prepare(`${TOP_SQL[kind]} ORDER BY playcount DESC, MAX(ts) DESC LIMIT ?3 OFFSET ?4`)
     .bind(from, to, limit, offset).all<TopRow>();
+  if (key && results.length) await setMeta(env, key, JSON.stringify({ at: now, rows: results }));
   return results;
 }
 
