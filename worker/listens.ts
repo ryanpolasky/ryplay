@@ -108,7 +108,7 @@ export function dedupeListens(rows: Listen[], prior: Listen[] = []): Listen[] {
   return out;
 }
 
-async function insertListens(env: ListenEnv, rows: Listen[]) {
+export async function insertListens(env: ListenEnv, rows: Listen[]) {
   if (!rows.length) return;
   // One ts-range lookup (indexable on the PK) for all rows near the window,
   // instead of a correlated NOT EXISTS per row that can't use the index.
