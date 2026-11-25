@@ -85,33 +85,45 @@ export async function setMeta(env: ListenEnv, key: string, value: string | numbe
 // rows within a 5-minute window — a faster genuine replay is implausible.
 export const DEDUPE_WINDOW = 300;
 
-export function dedupeListens(rows: Listen[]): Listen[] {
-  const seen = new Map<string, number[]>(); // normalized key -> all timestamps seen (kept or not)
+// `prior` rows are already stored and therefore all "kept"; comparisons are
+// against kept timestamps only, so a dropped dupe can't extend the window and
+// swallow a genuine later replay.
+export function dedupeListens(rows: Listen[], prior: Listen[] = []): Listen[] {
+  const kept = new Map<string, number[]>();
+  for (const l of prior) {
+    const key = `${l.artist}${l.track}`.toLowerCase();
+    const times = kept.get(key) ?? [];
+    times.push(l.ts);
+    kept.set(key, times);
+  }
   const out: Listen[] = [];
   for (const l of [...rows].sort((a, b) => a.ts - b.ts)) {
     const key = `${l.artist}${l.track}`.toLowerCase();
-    const times = seen.get(key) ?? [];
+    const times = kept.get(key) ?? [];
+    if (times.some((t) => Math.abs(t - l.ts) <= DEDUPE_WINDOW)) continue;
     times.push(l.ts);
-    seen.set(key, times);
-    if (times.length > 1 && times[times.length - 1] - times[times.length - 2] <= DEDUPE_WINDOW) continue;
+    kept.set(key, times);
     out.push(l);
   }
   return out;
 }
 
 async function insertListens(env: ListenEnv, rows: Listen[]) {
-  rows = dedupeListens(rows);
+  if (!rows.length) return;
+  // One ts-range lookup (indexable on the PK) for all rows near the window,
+  // instead of a correlated NOT EXISTS per row that can't use the index.
+  const lo = rows.reduce((m, l) => Math.min(m, l.ts), Infinity) - DEDUPE_WINDOW;
+  const hi = rows.reduce((m, l) => Math.max(m, l.ts), 0) + DEDUPE_WINDOW;
+  const { results: prior } = await env.DB.prepare(
+    "SELECT * FROM listens WHERE ts >= ?1 AND ts <= ?2",
+  ).bind(lo, hi).all<Listen>();
+  rows = dedupeListens(rows, prior ?? []);
   if (!rows.length) return;
   await env.DB.prepare(
     `INSERT OR IGNORE INTO listens (ts, artist, track, album, artist_mbid, release_mbid, caa_id, duration_ms)
      SELECT j.value->>'ts', j.value->>'artist', j.value->>'track', j.value->>'album',
             j.value->>'artist_mbid', j.value->>'release_mbid', j.value->>'caa_id', j.value->>'duration_ms'
-     FROM json_each(?1) j
-     WHERE NOT EXISTS (
-       SELECT 1 FROM listens b
-       WHERE b.artist = j.value->>'artist' AND b.track = j.value->>'track'
-         AND abs(b.ts - CAST(j.value->>'ts' AS INTEGER)) <= ${DEDUPE_WINDOW}
-     )`,
+     FROM json_each(?1) j`,
   ).bind(JSON.stringify(rows)).run();
 }
 
