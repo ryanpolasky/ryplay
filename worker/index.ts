@@ -218,19 +218,23 @@ async function spotifyRecent(env: Env, token: string) {
   }).catch(() => null);
   if (!r?.ok) return;
   const data = (await r.json().catch(() => null)) as Json | null;
+  // Skip plays already handed to insertListens so idle minutes don't re-read D1.
+  const seen = Number((await getMeta(env, "spotify.recent_seen")) ?? 0);
   const rows: Listen[] = [];
   for (const it of data?.items ?? []) {
     const t = it?.track;
     const played = it?.played_at ? Math.floor(Date.parse(it.played_at) / 1000) : 0;
     const artist = t?.artists?.[0]?.name;
-    if (!played || !artist || !t?.name) continue;
+    if (!played || played <= seen || !artist || !t?.name) continue;
     rows.push({
       ts: played, artist, track: t.name, album: t.album?.name ?? "",
       artist_mbid: null, release_mbid: null, caa_id: null,
       duration_ms: typeof t.duration_ms === "number" ? t.duration_ms : null,
     });
   }
+  if (!rows.length) return;
   await insertListens(env, rows);
+  await setMeta(env, "spotify.recent_seen", Math.max(...rows.map((l) => l.ts)));
 }
 
 async function spotifyPoll(env: Env) {
