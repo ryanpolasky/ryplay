@@ -121,8 +121,12 @@ export async function sync(env: ListenEnv, maxPages = 10) {
   if (new Date().getUTCMinutes() % 15 === 0) {
     const remote = (await lb(`/user/${user}/listen-count`))?.payload?.count;
     const local = (await env.DB.prepare("SELECT COUNT(*) AS n FROM listens").first<{ n: number }>())?.n ?? 0;
-    if (typeof remote === "number" && remote > local && String(remote) !== (await getMeta(env, "rewalk_at_count"))) {
-      await setMeta(env, "rewalk_at_count", remote);
+    // remote stays permanently ahead by however many dupes ListenBrainz stores
+    // server-side (dedupeListens keeps them out locally), so cap rewalks to
+    // once a day instead of trusting a count margin.
+    const lastRewalk = Number((await getMeta(env, "last_rewalk_at")) ?? 0);
+    if (typeof remote === "number" && remote > local && Date.now() / 1000 - lastRewalk > 86400) {
+      await setMeta(env, "last_rewalk_at", Math.floor(Date.now() / 1000));
       await setMeta(env, "cursor", 0);
     }
   }
