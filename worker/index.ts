@@ -1,6 +1,6 @@
 import {
   type Listen, type ListenEnv, type NowPlaying, type TopKind, PERIODS, artistGenres, countBetween, coverArt, getMeta, isOwner, nowPlaying,
-  periodStart, recent, setMeta, sync, timestampsSince, top, totals, weeklyChartList,
+  insertListens, periodStart, recent, setMeta, sync, timestampsSince, top, totals, weeklyChartList,
 } from "./listens";
 
 interface Env extends ListenEnv {
@@ -209,10 +209,35 @@ async function spotifyAccessToken(env: Env): Promise<string | null> {
   return data.access_token;
 }
 
+// ListenBrainz's Spotify importer only refreshes history every hour or more;
+// poll recently-played directly so played tracks reach D1 within a minute.
+async function spotifyRecent(env: Env, token: string) {
+  const r = await fetch("https://api.spotify.com/v1/me/player/recently-played?limit=50", {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(8000),
+  }).catch(() => null);
+  if (!r?.ok) return;
+  const data = (await r.json().catch(() => null)) as Json | null;
+  const rows: Listen[] = [];
+  for (const it of data?.items ?? []) {
+    const t = it?.track;
+    const played = it?.played_at ? Math.floor(Date.parse(it.played_at) / 1000) : 0;
+    const artist = t?.artists?.[0]?.name;
+    if (!played || !artist || !t?.name) continue;
+    rows.push({
+      ts: played, artist, track: t.name, album: t.album?.name ?? "",
+      artist_mbid: null, release_mbid: null, caa_id: null,
+      duration_ms: typeof t.duration_ms === "number" ? t.duration_ms : null,
+    });
+  }
+  await insertListens(env, rows);
+}
+
 async function spotifyPoll(env: Env) {
   if (!env.SPOTIFY_CLIENT_ID || !env.SPOTIFY_CLIENT_SECRET) return;
   const token = await spotifyAccessToken(env);
   if (!token) return;
+  await spotifyRecent(env, token);
   const r = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
     headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(8000),

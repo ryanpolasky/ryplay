@@ -79,7 +79,45 @@ export async function setMeta(env: ListenEnv, key: string, value: string | numbe
   await env.DB.prepare("INSERT INTO meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = ?2").bind(key, String(value)).run();
 }
 
-async function insertListens(env: ListenEnv, rows: Listen[]) {
+// The same play reaches ListenBrainz through multiple paths (its Spotify
+// connector AND its Last.fm importer both submit ongoing listens), so the feed
+// carries the same song twice a few minutes apart. Collapse same artist+track
+// rows within a 5-minute window — a faster genuine replay is implausible.
+export const DEDUPE_WINDOW = 300;
+
+// `prior` rows are already stored and therefore all "kept"; comparisons are
+// against kept timestamps only, so a dropped dupe can't extend the window and
+// swallow a genuine later replay.
+export function dedupeListens(rows: Listen[], prior: Listen[] = []): Listen[] {
+  const kept = new Map<string, number[]>();
+  for (const l of prior) {
+    const key = `${l.artist}${l.track}`.toLowerCase();
+    const times = kept.get(key) ?? [];
+    times.push(l.ts);
+    kept.set(key, times);
+  }
+  const out: Listen[] = [];
+  for (const l of [...rows].sort((a, b) => a.ts - b.ts)) {
+    const key = `${l.artist}${l.track}`.toLowerCase();
+    const times = kept.get(key) ?? [];
+    if (times.some((t) => Math.abs(t - l.ts) <= DEDUPE_WINDOW)) continue;
+    times.push(l.ts);
+    kept.set(key, times);
+    out.push(l);
+  }
+  return out;
+}
+
+export async function insertListens(env: ListenEnv, rows: Listen[]) {
+  if (!rows.length) return;
+  // One ts-range lookup (indexable on the PK) for all rows near the window,
+  // instead of a correlated NOT EXISTS per row that can't use the index.
+  const lo = rows.reduce((m, l) => Math.min(m, l.ts), Infinity) - DEDUPE_WINDOW;
+  const hi = rows.reduce((m, l) => Math.max(m, l.ts), 0) + DEDUPE_WINDOW;
+  const { results: prior } = await env.DB.prepare(
+    "SELECT * FROM listens WHERE ts >= ?1 AND ts <= ?2",
+  ).bind(lo, hi).all<Listen>();
+  rows = dedupeListens(rows, prior ?? []);
   if (!rows.length) return;
   await env.DB.prepare(
     `INSERT OR IGNORE INTO listens (ts, artist, track, album, artist_mbid, release_mbid, caa_id, duration_ms)
@@ -95,8 +133,12 @@ export async function sync(env: ListenEnv, maxPages = 10) {
   if (new Date().getUTCMinutes() % 15 === 0) {
     const remote = (await lb(`/user/${user}/listen-count`))?.payload?.count;
     const local = (await env.DB.prepare("SELECT COUNT(*) AS n FROM listens").first<{ n: number }>())?.n ?? 0;
-    if (typeof remote === "number" && remote > local && String(remote) !== (await getMeta(env, "rewalk_at_count"))) {
-      await setMeta(env, "rewalk_at_count", remote);
+    // remote stays permanently ahead by however many dupes ListenBrainz stores
+    // server-side (dedupeListens keeps them out locally), so cap rewalks to
+    // once a day instead of trusting a count margin.
+    const lastRewalk = Number((await getMeta(env, "last_rewalk_at")) ?? 0);
+    if (typeof remote === "number" && remote > local && Date.now() / 1000 - lastRewalk > 86400) {
+      await setMeta(env, "last_rewalk_at", Math.floor(Date.now() / 1000));
       await setMeta(env, "cursor", 0);
     }
   }
