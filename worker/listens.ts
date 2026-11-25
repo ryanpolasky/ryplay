@@ -79,13 +79,39 @@ export async function setMeta(env: ListenEnv, key: string, value: string | numbe
   await env.DB.prepare("INSERT INTO meta (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = ?2").bind(key, String(value)).run();
 }
 
+// The same play reaches ListenBrainz through multiple paths (its Spotify
+// connector AND its Last.fm importer both submit ongoing listens), so the feed
+// carries the same song twice a few minutes apart. Collapse same artist+track
+// rows within a 5-minute window — a faster genuine replay is implausible.
+export const DEDUPE_WINDOW = 300;
+
+export function dedupeListens(rows: Listen[]): Listen[] {
+  const seen = new Map<string, number[]>(); // normalized key -> all timestamps seen (kept or not)
+  const out: Listen[] = [];
+  for (const l of [...rows].sort((a, b) => a.ts - b.ts)) {
+    const key = `${l.artist}${l.track}`.toLowerCase();
+    const times = seen.get(key) ?? [];
+    times.push(l.ts);
+    seen.set(key, times);
+    if (times.length > 1 && times[times.length - 1] - times[times.length - 2] <= DEDUPE_WINDOW) continue;
+    out.push(l);
+  }
+  return out;
+}
+
 async function insertListens(env: ListenEnv, rows: Listen[]) {
+  rows = dedupeListens(rows);
   if (!rows.length) return;
   await env.DB.prepare(
     `INSERT OR IGNORE INTO listens (ts, artist, track, album, artist_mbid, release_mbid, caa_id, duration_ms)
      SELECT j.value->>'ts', j.value->>'artist', j.value->>'track', j.value->>'album',
             j.value->>'artist_mbid', j.value->>'release_mbid', j.value->>'caa_id', j.value->>'duration_ms'
-     FROM json_each(?1) j`,
+     FROM json_each(?1) j
+     WHERE NOT EXISTS (
+       SELECT 1 FROM listens b
+       WHERE b.artist = j.value->>'artist' AND b.track = j.value->>'track'
+         AND abs(b.ts - CAST(j.value->>'ts' AS INTEGER)) <= ${DEDUPE_WINDOW}
+     )`,
   ).bind(JSON.stringify(rows)).run();
 }
 
