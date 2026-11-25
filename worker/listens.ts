@@ -119,12 +119,18 @@ export async function insertListens(env: ListenEnv, rows: Listen[]) {
   ).bind(lo, hi).all<Listen>();
   rows = dedupeListens(rows, prior ?? []);
   if (!rows.length) return;
-  await env.DB.prepare(
+  const res = await env.DB.prepare(
     `INSERT OR IGNORE INTO listens (ts, artist, track, album, artist_mbid, release_mbid, caa_id, duration_ms)
      SELECT j.value->>'ts', j.value->>'artist', j.value->>'track', j.value->>'album',
             j.value->>'artist_mbid', j.value->>'release_mbid', j.value->>'caa_id', j.value->>'duration_ms'
      FROM json_each(?1) j`,
   ).bind(JSON.stringify(rows)).run();
+  // Backfilled rows land below the cached totals' high-water mark, which the
+  // incremental top-up wouldn't see, so drop the snapshot.
+  if (res.meta.changes) {
+    const t = JSON.parse((await getMeta(env, "totals")) ?? "null") as Totals | null;
+    if (t && rows.some((l) => l.ts <= t.last)) await env.DB.prepare("DELETE FROM meta WHERE key = 'totals'").run();
+  }
 }
 
 // Walks forward from the cursor; a count mismatch with ListenBrainz (e.g. a late history import) restarts the walk from 0.
@@ -172,7 +178,7 @@ export async function recent(env: ListenEnv, limit: number, from = 0, to = 2 ** 
 }
 
 export async function countBetween(env: ListenEnv, from = 0, to = 2 ** 31) {
-  if (to >= Date.now() / 1000) {
+  if (to >= 2 ** 31) {
     const t = await totals(env);
     if (from <= t.first) return t.scrobbles;
   }
