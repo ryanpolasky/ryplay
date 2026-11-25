@@ -119,25 +119,30 @@ export async function insertListens(env: ListenEnv, rows: Listen[]) {
   ).bind(lo, hi).all<Listen>();
   rows = dedupeListens(rows, prior ?? []);
   if (!rows.length) return;
-  await env.DB.prepare(
+  const res = await env.DB.prepare(
     `INSERT OR IGNORE INTO listens (ts, artist, track, album, artist_mbid, release_mbid, caa_id, duration_ms)
      SELECT j.value->>'ts', j.value->>'artist', j.value->>'track', j.value->>'album',
             j.value->>'artist_mbid', j.value->>'release_mbid', j.value->>'caa_id', j.value->>'duration_ms'
      FROM json_each(?1) j`,
   ).bind(JSON.stringify(rows)).run();
+  // Backfilled rows land below the cached totals' high-water mark, which the
+  // incremental top-up wouldn't see, so drop the snapshot.
+  if (res.meta.changes) {
+    const t = JSON.parse((await getMeta(env, "totals")) ?? "null") as Totals | null;
+    if (t && rows.some((l) => l.ts <= t.last)) await env.DB.prepare("DELETE FROM meta WHERE key = 'totals'").run();
+  }
 }
 
 // Walks forward from the cursor; a count mismatch with ListenBrainz (e.g. a late history import) restarts the walk from 0.
 export async function sync(env: ListenEnv, maxPages = 10) {
   const user = encodeURIComponent(env.LB_USER);
-  if (new Date().getUTCMinutes() % 15 === 0) {
+  // remote stays permanently ahead by however many dupes ListenBrainz stores
+  // server-side (dedupeListens keeps them out locally), so cap rewalks to once a
+  // day, and only count local rows once one is due (each count scans the table).
+  if (new Date().getUTCMinutes() % 15 === 0 && Date.now() / 1000 - Number((await getMeta(env, "last_rewalk_at")) ?? 0) > 86400) {
     const remote = (await lb(`/user/${user}/listen-count`))?.payload?.count;
-    const local = (await env.DB.prepare("SELECT COUNT(*) AS n FROM listens").first<{ n: number }>())?.n ?? 0;
-    // remote stays permanently ahead by however many dupes ListenBrainz stores
-    // server-side (dedupeListens keeps them out locally), so cap rewalks to
-    // once a day instead of trusting a count margin.
-    const lastRewalk = Number((await getMeta(env, "last_rewalk_at")) ?? 0);
-    if (typeof remote === "number" && remote > local && Date.now() / 1000 - lastRewalk > 86400) {
+    const local = typeof remote === "number" ? (await totals(env)).scrobbles : 0;
+    if (typeof remote === "number" && remote > local) {
       await setMeta(env, "last_rewalk_at", Math.floor(Date.now() / 1000));
       await setMeta(env, "cursor", 0);
     }
@@ -173,6 +178,10 @@ export async function recent(env: ListenEnv, limit: number, from = 0, to = 2 ** 
 }
 
 export async function countBetween(env: ListenEnv, from = 0, to = 2 ** 31) {
+  if (to >= 2 ** 31) {
+    const t = await totals(env);
+    if (from <= t.first) return t.scrobbles;
+  }
   return (await env.DB.prepare("SELECT COUNT(*) AS n FROM listens WHERE ts >= ?1 AND ts <= ?2").bind(from, to).first<{ n: number }>())?.n ?? 0;
 }
 
@@ -192,15 +201,28 @@ export async function top(env: ListenEnv, kind: TopKind, from: number, limit: nu
   return results;
 }
 
+type Totals = { scrobbles: number; artists: number; tracks: number; albums: number; first: number; last: number; at: number };
+const TOTALS_TTL = 3600;
+
+// Full-table aggregates read every row, so cache them in meta for an hour and
+// top up the scrobble count with rows newer than the snapshot (a PK range scan).
 export async function totals(env: ListenEnv) {
-  const r = await env.DB.prepare(
-    `SELECT COUNT(*) AS scrobbles, COUNT(DISTINCT artist) AS artists,
-            COUNT(DISTINCT artist || char(0) || track) AS tracks,
-            COUNT(DISTINCT CASE WHEN album != '' THEN artist || char(0) || album END) AS albums,
-            MIN(ts) AS first
-     FROM listens`,
-  ).first<{ scrobbles: number; artists: number; tracks: number; albums: number; first: number | null }>();
-  return { scrobbles: r?.scrobbles ?? 0, artists: r?.artists ?? 0, tracks: r?.tracks ?? 0, albums: r?.albums ?? 0, first: r?.first ?? 0 };
+  const now = Math.floor(Date.now() / 1000);
+  let t = JSON.parse((await getMeta(env, "totals")) ?? "null") as Totals | null;
+  if (!t || now - t.at > TOTALS_TTL) {
+    const r = await env.DB.prepare(
+      `SELECT COUNT(*) AS scrobbles, COUNT(DISTINCT artist) AS artists,
+              COUNT(DISTINCT artist || char(0) || track) AS tracks,
+              COUNT(DISTINCT CASE WHEN album != '' THEN artist || char(0) || album END) AS albums,
+              MIN(ts) AS first, MAX(ts) AS last
+       FROM listens`,
+    ).first<Omit<Totals, "at">>();
+    t = { scrobbles: r?.scrobbles ?? 0, artists: r?.artists ?? 0, tracks: r?.tracks ?? 0, albums: r?.albums ?? 0, first: r?.first ?? 0, last: r?.last ?? 0, at: now };
+    if (t.scrobbles) await setMeta(env, "totals", JSON.stringify(t));
+    return t;
+  }
+  const fresh = (await env.DB.prepare("SELECT COUNT(*) AS n FROM listens WHERE ts > ?1").bind(t.last).first<{ n: number }>())?.n ?? 0;
+  return { ...t, scrobbles: t.scrobbles + fresh };
 }
 
 export async function timestampsSince(env: ListenEnv, from: number) {
