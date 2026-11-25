@@ -1,6 +1,6 @@
 import {
   type Listen, type ListenEnv, type NowPlaying, type TopKind, PERIODS, artistGenres, countBetween, coverArt, getMeta, isOwner, nowPlaying,
-  insertListens, periodStart, recent, setMeta, sync, timestampsSince, top, totals, weeklyChartList,
+  insertListens, periodStart, recent, setMeta, sync, timestampsSince, top, TOP_TTL, totals, weeklyChartList,
 } from "./listens";
 
 interface Env extends ListenEnv {
@@ -497,7 +497,7 @@ async function lastfmCompat(c: Ctx, url: URL): Promise<Response> {
         ...(kind === "artists" ? {} : { artist: { name: r.artist, url: "", mbid: "" } }),
       }));
       const root = `top${kind}`;
-      return json({ [root]: { [kind.slice(0, -1)]: items, "@attr": { ...attr(items.length), user: name } } }, 600);
+      return json({ [root]: { [kind.slice(0, -1)]: items, "@attr": { ...attr(items.length), user: name } } }, TOP_TTL);
     }
     case "user.getweeklychartlist": {
       const chart = (await weeklyChartList(env)).map((w) => ({ "#text": "", from: String(w.from), to: String(w.to) }));
@@ -571,7 +571,7 @@ const CACHED_ROUTES: Record<string, number> = {
   "/api/music/stats": HOUR,
   "/api/genres": HOUR,
   "/api/clock": 10 * 60,
-  "/api/top": 10 * 60,
+  "/api/top": TOP_TTL,
   "/api/artwork": 365 * 24 * HOUR,
 };
 
